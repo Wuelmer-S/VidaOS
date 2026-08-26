@@ -8,7 +8,8 @@ import java.time.LocalDate
 
 enum class OrigenPago {
     DEBITO,
-    CREDITO
+    CREDITO,
+    EFECTIVO
 }
 
 enum class TipoMovimiento {

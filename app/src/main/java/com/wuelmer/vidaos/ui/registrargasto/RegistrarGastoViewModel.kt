@@ -76,6 +76,14 @@ class RegistrarGastoViewModel(
         _uiState.update { it.copy(categoriaId = categoriaId) }
     }
 
+    fun agregarCategoria(nombre: String, tipo: TipoCategoria) {
+        if (nombre.isBlank()) return
+        viewModelScope.launch {
+            val nueva = categoriaDao.agregar(nombre, tipo)
+            _uiState.update { it.copy(categoriaId = nueva.id) }
+        }
+    }
+
     fun onGuardadoExitosoConsumido() {
         _uiState.update { it.copy(guardadoExitoso = false) }
     }

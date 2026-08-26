@@ -34,3 +34,8 @@ val PaletaCategorias = listOf(
     CategoriaCoral,
     CategoriaNaranja
 )
+
+// Orígenes de pago
+val OrigenDebitoColor = AzulAcento
+val OrigenCreditoColor = Color(0xFFFFA94D)
+val OrigenEfectivoColor = Color(0xFF2FBF8F)

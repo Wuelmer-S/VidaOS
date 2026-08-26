@@ -4,59 +4,73 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.wuelmer.vidaos.data.Categoria
 import com.wuelmer.vidaos.data.Movimiento
 import com.wuelmer.vidaos.data.MovimientoConCategoria
 import com.wuelmer.vidaos.data.OrigenPago
 import com.wuelmer.vidaos.data.TipoCategoria
 import com.wuelmer.vidaos.data.TipoMovimiento
+import com.wuelmer.vidaos.ui.categorias.AgregarCategoriaDialog
 import com.wuelmer.vidaos.ui.theme.ColorGasto
-import com.wuelmer.vidaos.ui.theme.ColorIngreso
 import com.wuelmer.vidaos.ui.theme.TextoSuave
 import com.wuelmer.vidaos.ui.theme.VidaOSTheme
-import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+private const val LIMITE_ULTIMOS_MOVIMIENTOS = 5
+
 @Composable
 fun MovimientosRoute(
     modifier: Modifier = Modifier,
+    onVerHistorialClick: () -> Unit = {},
+    onMovimientoClick: (Long) -> Unit = {},
+    onGestionarCategoriasClick: () -> Unit = {},
     viewModel: MovimientosViewModel = viewModel(factory = MovimientosViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    MovimientosScreen(uiState = uiState, modifier = modifier)
+    MovimientosScreen(
+        uiState = uiState,
+        onVerHistorialClick = onVerHistorialClick,
+        onMovimientoClick = onMovimientoClick,
+        onAgregarCategoria = viewModel::agregarCategoria,
+        onGestionarCategoriasClick = onGestionarCategoriasClick,
+        modifier = modifier
+    )
 }
 
 @Composable
 fun MovimientosScreen(
     uiState: MovimientosUiState,
+    onVerHistorialClick: () -> Unit = {},
+    onMovimientoClick: (Long) -> Unit = {},
+    onAgregarCategoria: (nombre: String, tipo: TipoCategoria) -> Unit = { _, _ -> },
+    onGestionarCategoriasClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var mostrarDialogoCategoria by remember { mutableStateOf(false) }
     val mesFormateado = remember {
         LocalDate.now()
             .format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("es-ES")))
@@ -72,6 +86,14 @@ fun MovimientosScreen(
     ) {
         TotalDelMesCard(mesFormateado = mesFormateado, total = uiState.totalGastadoMes)
 
+        GraficoGastosPorCategoriaCard(
+            gastos = uiState.gastosPorCategoria,
+            onAgregarCategoriaClick = { mostrarDialogoCategoria = true },
+            onGestionarCategoriasClick = onGestionarCategoriasClick
+        )
+
+        GraficoGastosPorOrigenCard(gastos = uiState.gastosPorOrigen)
+
         Surface(
             shape = RoundedCornerShape(22.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -86,17 +108,39 @@ fun MovimientosScreen(
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp)
-                ) {
-                    items(uiState.movimientos, key = { it.movimiento.id }) { item ->
-                        MovimientoRow(item)
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                Column(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp)
+                    ) {
+                        items(
+                            uiState.movimientos.take(LIMITE_ULTIMOS_MOVIMIENTOS),
+                            key = { it.movimiento.id }
+                        ) { item ->
+                            MovimientoRow(item, onClick = onMovimientoClick)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                        }
+                    }
+                    TextButton(
+                        onClick = onVerHistorialClick,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Ver historial completo")
                     }
                 }
             }
         }
+    }
+
+    if (mostrarDialogoCategoria) {
+        AgregarCategoriaDialog(
+            tipoFijo = null,
+            onDismiss = { mostrarDialogoCategoria = false },
+            onConfirmar = { nombre, tipo ->
+                onAgregarCategoria(nombre, tipo)
+                mostrarDialogoCategoria = false
+            }
+        )
     }
 }
 
@@ -120,62 +164,6 @@ private fun TotalDelMesCard(mesFormateado: String, total: Long) {
                 color = ColorGasto
             )
         }
-    }
-}
-
-@Composable
-private fun MovimientoRow(item: MovimientoConCategoria) {
-    val esIngreso = item.movimiento.tipo == TipoMovimiento.INGRESO
-    val colorMonto = if (esIngreso) ColorIngreso else ColorGasto
-    val signo = if (esIngreso) "+" else "−"
-    val color = parseColorOrDefault(item.categoriaColor, MaterialTheme.colorScheme.primary)
-    val formatterFecha = remember { DateTimeFormatter.ofPattern("dd MMM", Locale.forLanguageTag("es-ES")) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Surface(shape = CircleShape, color = color.copy(alpha = 0.15f), modifier = Modifier.size(36.dp)) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Surface(shape = CircleShape, color = color, modifier = Modifier.size(10.dp)) {}
-            }
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.movimiento.descripcion.ifBlank { item.categoriaNombre },
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = "${item.categoriaNombre} · ${item.movimiento.fecha.format(formatterFecha)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextoSuave
-            )
-        }
-
-        Text(
-            text = "$signo${formatearMonto(item.movimiento.monto)}",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = colorMonto
-        )
-    }
-}
-
-private fun formatearMonto(monto: Long): String {
-    val formatter = NumberFormat.getIntegerInstance(Locale.forLanguageTag("es-CL"))
-    return "$${formatter.format(monto)}"
-}
-
-private fun parseColorOrDefault(hex: String?, default: Color): Color {
-    if (hex.isNullOrBlank()) return default
-    return try {
-        Color(android.graphics.Color.parseColor(hex))
-    } catch (error: IllegalArgumentException) {
-        default
     }
 }
 

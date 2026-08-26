@@ -18,10 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.wuelmer.vidaos.ui.categorias.CategoriasRoute
+import com.wuelmer.vidaos.ui.detalle.DetalleMovimientoRoute
+import com.wuelmer.vidaos.ui.historial.HistorialRoute
 import com.wuelmer.vidaos.ui.movimientos.MovimientosRoute
 import com.wuelmer.vidaos.ui.registrargasto.RegistrarGastoRoute
 import com.wuelmer.vidaos.ui.theme.VidaOSTheme
@@ -30,6 +35,11 @@ private enum class VidaOSDestino(val ruta: String, val etiqueta: String) {
     REGISTRAR("registrar", "Registrar"),
     MOVIMIENTOS("movimientos", "Movimientos")
 }
+
+private const val RUTA_HISTORIAL = "historial"
+private const val RUTA_CATEGORIAS = "categorias"
+private const val ARG_MOVIMIENTO_ID = "movimientoId"
+private const val RUTA_DETALLE = "detalle/{$ARG_MOVIMIENTO_ID}"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,7 +91,32 @@ private fun VidaOSApp() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(VidaOSDestino.REGISTRAR.ruta) { RegistrarGastoRoute() }
-            composable(VidaOSDestino.MOVIMIENTOS.ruta) { MovimientosRoute() }
+            composable(VidaOSDestino.MOVIMIENTOS.ruta) {
+                MovimientosRoute(
+                    onVerHistorialClick = { navController.navigate(RUTA_HISTORIAL) },
+                    onMovimientoClick = { id -> navController.navigate("detalle/$id") },
+                    onGestionarCategoriasClick = { navController.navigate(RUTA_CATEGORIAS) }
+                )
+            }
+            composable(RUTA_HISTORIAL) {
+                HistorialRoute(
+                    onBackClick = { navController.popBackStack() },
+                    onMovimientoClick = { id -> navController.navigate("detalle/$id") }
+                )
+            }
+            composable(RUTA_CATEGORIAS) {
+                CategoriasRoute(onBackClick = { navController.popBackStack() })
+            }
+            composable(
+                route = RUTA_DETALLE,
+                arguments = listOf(navArgument(ARG_MOVIMIENTO_ID) { type = NavType.LongType })
+            ) { backStackEntry ->
+                val movimientoId = backStackEntry.arguments?.getLong(ARG_MOVIMIENTO_ID) ?: 0L
+                DetalleMovimientoRoute(
+                    movimientoId = movimientoId,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
