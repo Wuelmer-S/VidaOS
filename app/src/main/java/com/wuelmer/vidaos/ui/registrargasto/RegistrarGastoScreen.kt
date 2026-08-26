@@ -17,8 +17,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -47,7 +51,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wuelmer.vidaos.data.Categoria
 import com.wuelmer.vidaos.data.OrigenPago
+import com.wuelmer.vidaos.data.TipoCategoria
 import com.wuelmer.vidaos.data.TipoMovimiento
+import com.wuelmer.vidaos.ui.categorias.AgregarCategoriaDialog
 import com.wuelmer.vidaos.ui.theme.ColorGasto
 import com.wuelmer.vidaos.ui.theme.ColorIngreso
 import com.wuelmer.vidaos.ui.theme.TextoSuave
@@ -83,6 +89,7 @@ fun RegistrarGastoRoute(
             onOrigenChange = viewModel::onOrigenChange,
             onTipoChange = viewModel::onTipoChange,
             onCategoriaChange = viewModel::onCategoriaChange,
+            onAgregarCategoria = viewModel::agregarCategoria,
             onGuardarClick = viewModel::guardar
         )
     }
@@ -97,6 +104,7 @@ fun RegistrarGastoScreen(
     onOrigenChange: (OrigenPago) -> Unit,
     onTipoChange: (TipoMovimiento) -> Unit,
     onCategoriaChange: (Long) -> Unit,
+    onAgregarCategoria: (nombre: String, tipo: TipoCategoria) -> Unit = { _, _ -> },
     onGuardarClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -167,7 +175,8 @@ fun RegistrarGastoScreen(
                     categorias = uiState.categorias,
                     tipoSeleccionado = uiState.tipo,
                     categoriaSeleccionadaId = uiState.categoriaId,
-                    onCategoriaChange = onCategoriaChange
+                    onCategoriaChange = onCategoriaChange,
+                    onAgregarCategoria = onAgregarCategoria
                 )
 
                 FechaSelector(fecha = uiState.fecha, onFechaChange = onFechaChange)
@@ -231,8 +240,10 @@ private fun CategoriaSelector(
     categorias: List<Categoria>,
     tipoSeleccionado: TipoMovimiento,
     categoriaSeleccionadaId: Long?,
-    onCategoriaChange: (Long) -> Unit
+    onCategoriaChange: (Long) -> Unit,
+    onAgregarCategoria: (nombre: String, tipo: TipoCategoria) -> Unit
 ) {
+    var mostrarDialogo by remember { mutableStateOf(false) }
     val tipoCategoria = tipoSeleccionado.categoriaCorrespondiente()
     val categoriasVisibles = if (tipoCategoria == null) {
         categorias
@@ -266,7 +277,24 @@ private fun CategoriaSelector(
                     )
                 )
             }
+
+            AssistChip(
+                onClick = { mostrarDialogo = true },
+                label = { Text("Nueva") },
+                leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) }
+            )
         }
+    }
+
+    if (mostrarDialogo) {
+        AgregarCategoriaDialog(
+            tipoFijo = tipoCategoria,
+            onDismiss = { mostrarDialogo = false },
+            onConfirmar = { nombre, tipo ->
+                onAgregarCategoria(nombre, tipo)
+                mostrarDialogo = false
+            }
+        )
     }
 }
 
@@ -292,10 +320,16 @@ private fun OrigenSelector(
                 onClick = { onOrigenChange(origen) },
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = OrigenPago.entries.size)
             ) {
-                Text(origen.name)
+                Text(origen.etiqueta())
             }
         }
     }
+}
+
+private fun OrigenPago.etiqueta(): String = when (this) {
+    OrigenPago.DEBITO -> "Débito"
+    OrigenPago.CREDITO -> "Crédito"
+    OrigenPago.EFECTIVO -> "Efectivo"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
