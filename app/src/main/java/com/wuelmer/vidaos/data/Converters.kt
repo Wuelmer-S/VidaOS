@@ -34,4 +34,16 @@ class Converters {
 
     @TypeConverter
     fun toTipoCategoria(value: String?): TipoCategoria? = value?.let(TipoCategoria::valueOf)
+
+    @TypeConverter
+    fun fromTipoEjercicio(value: TipoEjercicio?): String? = value?.name
+
+    @TypeConverter
+    fun toTipoEjercicio(value: String?): TipoEjercicio? = value?.let(TipoEjercicio::valueOf)
+
+    @TypeConverter
+    fun fromZonaEjercicio(value: ZonaEjercicio?): String? = value?.name
+
+    @TypeConverter
+    fun toZonaEjercicio(value: String?): ZonaEjercicio? = value?.let(ZonaEjercicio::valueOf)
 }
