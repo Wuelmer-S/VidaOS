@@ -4,6 +4,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 object SeedGym {
 
+    const val RUTINA_INICIAL_ID = 1L
+
     private const val GRANDE = 150
     private const val PEQUENO = 75
 
@@ -88,13 +90,13 @@ object SeedGym {
             )
         }
 
-        db.execSQL("INSERT INTO rutinas (id, nombre) VALUES (?, ?)", arrayOf<Any?>(1L, "Full Body 3 días"))
+        db.execSQL("INSERT INTO rutinas (id, nombre) VALUES (?, ?)", arrayOf<Any?>(RUTINA_INICIAL_ID, "Full Body 3 días"))
 
         dias.forEachIndexed { d, (nombreDia, filas) ->
             val diaId = d + 1L
             db.execSQL(
                 "INSERT INTO dias_rutina (id, rutinaId, numero, nombre) VALUES (?, ?, ?, ?)",
-                arrayOf<Any?>(diaId, 1L, d + 1, nombreDia)
+                arrayOf<Any?>(diaId, RUTINA_INICIAL_ID, d + 1, nombreDia)
             )
             filas.forEachIndexed { orden, f ->
                 db.execSQL(

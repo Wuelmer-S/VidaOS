@@ -26,7 +26,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.wuelmer.vidaos.ui.categorias.CategoriasRoute
 import com.wuelmer.vidaos.ui.detalle.DetalleMovimientoRoute
+import com.wuelmer.vidaos.ui.gym.DetalleSesionGymRoute
 import com.wuelmer.vidaos.ui.gym.GymRoute
+import com.wuelmer.vidaos.ui.gym.SesionGymRoute
 import com.wuelmer.vidaos.ui.historial.HistorialRoute
 import com.wuelmer.vidaos.ui.movimientos.MovimientosRoute
 import com.wuelmer.vidaos.ui.navegacion.Modulo
@@ -43,6 +45,11 @@ private const val RUTA_HISTORIAL = "historial"
 private const val RUTA_CATEGORIAS = "categorias"
 private const val ARG_MOVIMIENTO_ID = "movimientoId"
 private const val RUTA_DETALLE = "detalle/{$ARG_MOVIMIENTO_ID}"
+private const val RUTA_GYM_INICIO = "gym_inicio"
+private const val ARG_DIA_ID = "diaId"
+private const val RUTA_GYM_SESION = "gym_sesion/{$ARG_DIA_ID}"
+private const val ARG_SESION_ID = "sesionId"
+private const val RUTA_GYM_DETALLE = "gym_detalle/{$ARG_SESION_ID}"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -127,7 +134,38 @@ private fun VidaOSApp() {
                         )
                     }
                 }
-                composable(Modulo.GYM.ruta) { GymRoute() }
+                navigation(
+                    startDestination = RUTA_GYM_INICIO,
+                    route = Modulo.GYM.ruta
+                ) {
+                    composable(RUTA_GYM_INICIO) {
+                        GymRoute(
+                            onIniciarSesion = { diaId -> navController.navigate("gym_sesion/$diaId") },
+                            onSesionClick = { id -> navController.navigate("gym_detalle/$id") }
+                        )
+                    }
+                    composable(
+                        route = RUTA_GYM_DETALLE,
+                        arguments = listOf(navArgument(ARG_SESION_ID) { type = NavType.LongType })
+                    ) { entry ->
+                        val sesionId = entry.arguments?.getLong(ARG_SESION_ID) ?: 0L
+                        DetalleSesionGymRoute(
+                            sesionId = sesionId,
+                            onBackClick = { navController.popBackStack() }
+                        )
+                    }
+                    composable(
+                        route = RUTA_GYM_SESION,
+                        arguments = listOf(navArgument(ARG_DIA_ID) { type = NavType.LongType })
+                    ) { entry ->
+                        val diaId = entry.arguments?.getLong(ARG_DIA_ID) ?: 0L
+                        SesionGymRoute(
+                            diaId = diaId,
+                            onBackClick = { navController.popBackStack() },
+                            onGuardado = { navController.popBackStack() }
+                        )
+                    }
+                }
             }
         }
     }
