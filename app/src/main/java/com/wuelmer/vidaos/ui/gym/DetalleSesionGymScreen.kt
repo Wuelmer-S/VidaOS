@@ -188,8 +188,3 @@ private fun textoSerie(serie: SerieGym, tipo: TipoEjercicio, unilateral: Boolean
         TipoEjercicio.TIEMPO -> "${serie.segundos} s"
     }
 }
-
-private fun formatearPeso(pesoKg: Double?): String {
-    if (pesoKg == null) return "-"
-    return if (pesoKg % 1.0 == 0.0) pesoKg.toInt().toString() else pesoKg.toString().replace('.', ',')
-}

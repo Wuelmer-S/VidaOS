@@ -26,15 +26,17 @@ class SesionGymViewModel(
         viewModelScope.launch {
             val dia = gymDao.getDia(diaRutinaId)
             val ejercicios = gymDao.getEjerciciosDelDia(diaRutinaId).map { e ->
+                val opciones = listOfNotNull(e.ejercicio, e.alternativa)
                 EjercicioSesionUi(
                     rutinaEjercicioId = e.objetivo.id,
-                    opciones = listOfNotNull(e.ejercicio, e.alternativa),
+                    opciones = opciones,
                     elegidoId = e.ejercicio.id,
                     series = e.objetivo.series,
                     objetivoMin = e.objetivo.objetivoMin,
                     objetivoMax = e.objetivo.objetivoMax,
                     descansoSegundos = e.objetivo.descansoSegundos,
-                    inputs = List(e.objetivo.series) { SerieInput() }
+                    inputs = List(e.objetivo.series) { SerieInput() },
+                    historial = opciones.associate { it.id to gymDao.getSeriesUltimaVez(it.id) }
                 )
             }
             _uiState.update {
