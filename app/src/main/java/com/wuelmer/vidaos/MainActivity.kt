@@ -1,19 +1,35 @@
 package com.wuelmer.vidaos
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -24,7 +40,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.wuelmer.vidaos.data.Tema
 import com.wuelmer.vidaos.ui.categorias.CategoriasRoute
+import com.wuelmer.vidaos.ui.configuracion.ConfiguracionRoute
 import com.wuelmer.vidaos.ui.detalle.DetalleMovimientoRoute
 import com.wuelmer.vidaos.ui.gym.DetalleSesionGymRoute
 import com.wuelmer.vidaos.ui.gym.GymRoute
@@ -50,13 +68,33 @@ private const val ARG_DIA_ID = "diaId"
 private const val RUTA_GYM_SESION = "gym_sesion/{$ARG_DIA_ID}"
 private const val ARG_SESION_ID = "sesionId"
 private const val RUTA_GYM_DETALLE = "gym_detalle/{$ARG_SESION_ID}"
+private const val RUTA_CONFIGURACION = "configuracion"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val preferencias = (application as VidaOSApplication).preferencias
         setContent {
-            VidaOSTheme {
+            // Hasta leer la preferencia no se dibuja nada, para no parpadear con el tema equivocado.
+            val tema by preferencias.tema.collectAsState(initial = null)
+            val temaActual = tema ?: return@setContent
+            val oscuro = when (temaActual) {
+                Tema.SISTEMA -> isSystemInDarkTheme()
+                Tema.CLARO -> false
+                Tema.OSCURO -> true
+            }
+            // Los íconos de la barra de estado siguen al tema elegido, no al del sistema.
+            DisposableEffect(oscuro) {
+                val estilo = if (oscuro) {
+                    SystemBarStyle.dark(Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                }
+                enableEdgeToEdge(statusBarStyle = estilo, navigationBarStyle = estilo)
+                onDispose {}
+            }
+            VidaOSTheme(darkTheme = oscuro) {
                 VidaOSApp()
             }
         }
@@ -74,6 +112,7 @@ private fun VidaOSApp() {
         destinoActual?.hierarchy?.any { it.route == modulo.ruta } == true
     }
     val pestanaActual = PestanaFinanzas.entries.firstOrNull { it.ruta == rutaActual }
+    val esPantallaPrincipal = pestanaActual != null || rutaActual == RUTA_GYM_INICIO
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -86,16 +125,15 @@ private fun VidaOSApp() {
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
-            if (pestanaActual != null) {
-                PrimaryTabRow(selectedTabIndex = pestanaActual.ordinal) {
-                    PestanaFinanzas.entries.forEach { pestana ->
-                        Tab(
-                            selected = pestana == pestanaActual,
-                            onClick = { navController.irAPestana(pestana) },
-                            text = { Text(pestana.etiqueta) }
-                        )
+            if (esPantallaPrincipal) {
+                EncabezadoModulo(
+                    pestanaActual = pestanaActual,
+                    titulo = moduloActual?.etiqueta.orEmpty(),
+                    onPestanaClick = { navController.irAPestana(it) },
+                    onConfiguracionClick = {
+                        navController.navigate(RUTA_CONFIGURACION) { launchSingleTop = true }
                     }
-                }
+                )
             }
             NavHost(
                 navController = navController,
@@ -134,6 +172,9 @@ private fun VidaOSApp() {
                         )
                     }
                 }
+                composable(RUTA_CONFIGURACION) {
+                    ConfiguracionRoute(onBackClick = { navController.popBackStack() })
+                }
                 navigation(
                     startDestination = RUTA_GYM_INICIO,
                     route = Modulo.GYM.ruta
@@ -166,6 +207,43 @@ private fun VidaOSApp() {
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+// Fila superior de las pantallas principales: pestañas (Finanzas) o título (resto) y el acceso a Configuración.
+@Composable
+private fun EncabezadoModulo(
+    pestanaActual: PestanaFinanzas?,
+    titulo: String,
+    onPestanaClick: (PestanaFinanzas) -> Unit,
+    onConfiguracionClick: () -> Unit
+) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.weight(1f)) {
+                if (pestanaActual != null) {
+                    PrimaryTabRow(selectedTabIndex = pestanaActual.ordinal) {
+                        PestanaFinanzas.entries.forEach { pestana ->
+                            Tab(
+                                selected = pestana == pestanaActual,
+                                onClick = { onPestanaClick(pestana) },
+                                text = { Text(pestana.etiqueta) }
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = titulo,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+            }
+            IconButton(onClick = onConfiguracionClick) {
+                Icon(Icons.Filled.Settings, contentDescription = "Configuración")
             }
         }
     }
