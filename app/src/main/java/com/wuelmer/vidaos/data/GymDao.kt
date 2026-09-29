@@ -51,6 +51,15 @@ interface GymDao {
     @Query("SELECT * FROM rutina_ejercicios WHERE diaRutinaId = :diaRutinaId ORDER BY orden")
     suspend fun getEjerciciosDelDia(diaRutinaId: Long): List<EjercicioDelDia>
 
+    // Series del ejercicio en la sesión más reciente que lo incluye.
+    @Query(
+        "SELECT * FROM series_gym WHERE ejercicioId = :ejercicioId AND sesionId = (" +
+            "SELECT s.id FROM sesiones_gym s JOIN series_gym sg ON sg.sesionId = s.id " +
+            "WHERE sg.ejercicioId = :ejercicioId ORDER BY s.fecha DESC, s.id DESC LIMIT 1" +
+            ") ORDER BY orden"
+    )
+    suspend fun getSeriesUltimaVez(ejercicioId: Long): List<SerieGym>
+
     @Insert
     suspend fun insertSesion(sesion: SesionGym): Long
 

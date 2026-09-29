@@ -54,6 +54,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
 import com.wuelmer.vidaos.data.EjercicioGym
 import com.wuelmer.vidaos.data.TipoEjercicio
+import com.wuelmer.vidaos.ui.theme.ColorIngreso
 import com.wuelmer.vidaos.ui.theme.TextoSuave
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -213,6 +214,22 @@ private fun EjercicioCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = TextoSuave
             )
+            if (ejercicio.ultimaVez.isNotEmpty()) {
+                Text(
+                    text = "Última vez: ${textoUltimaVez(elegido, ejercicio.ultimaVez)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextoSuave
+                )
+            }
+            ejercicio.sugerencia?.let { sugerencia ->
+                val subir = sugerencia is Sugerencia.SubirPeso || sugerencia is Sugerencia.RangoCompletado
+                Text(
+                    text = textoSugerencia(sugerencia),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = if (subir) ColorIngreso else MaterialTheme.colorScheme.onSurface
+                )
+            }
 
             if (ejercicio.opciones.size > 1) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -349,6 +366,12 @@ private fun SerieFila(
             }
         }
     }
+}
+
+private fun textoSugerencia(sugerencia: Sugerencia): String = when (sugerencia) {
+    is Sugerencia.SubirPeso -> "Sube a ${formatearPeso(sugerencia.pesoKg)} kg"
+    is Sugerencia.MantenerPeso -> "Mantén ${formatearPeso(sugerencia.pesoKg)} kg"
+    Sugerencia.RangoCompletado -> "Rango completado"
 }
 
 private fun textoObjetivo(ejercicio: EjercicioSesionUi): String {

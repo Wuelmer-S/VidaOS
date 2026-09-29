@@ -1,6 +1,7 @@
 package com.wuelmer.vidaos.ui.gym
 
 import com.wuelmer.vidaos.data.EjercicioGym
+import com.wuelmer.vidaos.data.SerieGym
 import com.wuelmer.vidaos.data.TipoEjercicio
 import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicLong
@@ -22,9 +23,12 @@ data class EjercicioSesionUi(
     val objetivoMin: Int,
     val objetivoMax: Int,
     val descansoSegundos: Int,
-    val inputs: List<SerieInput>
+    val inputs: List<SerieInput>,
+    val historial: Map<Long, List<SerieGym>> = emptyMap()
 ) {
     val elegido: EjercicioGym get() = opciones.first { it.id == elegidoId }
+    val ultimaVez: List<SerieGym> get() = historial[elegidoId].orEmpty()
+    val sugerencia: Sugerencia? get() = sugerir(elegido, series, objetivoMax, ultimaVez)
 }
 
 data class SesionGymUiState(
