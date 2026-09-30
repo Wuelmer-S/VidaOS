@@ -1,8 +1,11 @@
 package com.wuelmer.vidaos.ui.gym
 
 import com.wuelmer.vidaos.data.META_SEMANAL_DEFECTO
+import com.wuelmer.vidaos.data.UnidadPeso
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 /**
  * Racha = semanas seguidas (lunes a domingo) en que se llegó a la meta de sesiones.
@@ -118,4 +121,98 @@ fun calendarioConstancia(
             etiquetaMes = etiqueta
         )
     }
+}
+
+// --- Resumen y logros ---
+
+enum class TipoLogro { SESIONES, SEMANAS_SEGUIDAS }
+
+data class Logro(
+    val tipo: TipoLogro,
+    val objetivo: Int,
+    val icono: String,
+    val conseguido: Boolean,
+    // Avance hacia el objetivo: sesiones totales, o la racha actual para los de semanas seguidas.
+    val actual: Int
+) {
+    val titulo: String
+        get() = when (tipo) {
+            TipoLogro.SESIONES -> "$objetivo sesiones"
+            TipoLogro.SEMANAS_SEGUIDAS -> "$objetivo sem. seguidas"
+        }
+    val faltan: Int get() = (objetivo - actual).coerceAtLeast(0)
+    val fraccion: Float get() = (actual.toFloat() / objetivo).coerceIn(0f, 1f)
+}
+
+data class ResumenGym(
+    val sesionesTotales: Int,
+    val mejorRacha: Int,
+    val volumenTotalKg: Double,
+    val promedioSemanal: Double,
+    val logros: List<Logro>
+) {
+    // El logro pendiente más cercano a cumplirse; null si ya están todos.
+    val proximoLogro: Logro?
+        get() = logros.filter { !it.conseguido }.maxByOrNull { it.fraccion }
+}
+
+private val LOGROS_SESIONES = listOf(10 to "🥉", 25 to "🥈", 50 to "🥇", 100 to "💯")
+private val LOGROS_SEMANAS = listOf(4 to "📅", 8 to "🔥", 12 to "🏆")
+
+/** Mayor cantidad de semanas seguidas cumpliendo la meta en todo el historial. */
+fun mejorRacha(fechas: List<LocalDate>, meta: Int = META_SEMANAL_DEFECTO): Int {
+    val cumplidas = fechas.distinct()
+        .groupingBy { it.with(DayOfWeek.MONDAY) }
+        .eachCount()
+        .filterValues { it >= meta }
+        .keys
+        .sorted()
+    var mejor = 0
+    var actual = 0
+    var anterior: LocalDate? = null
+    cumplidas.forEach { lunes ->
+        actual = if (anterior != null && lunes == anterior!!.plusWeeks(1)) actual + 1 else 1
+        mejor = maxOf(mejor, actual)
+        anterior = lunes
+    }
+    return mejor
+}
+
+/**
+ * [fechas] trae una fecha por sesión (con repetidas si hubo varias el mismo día): los totales
+ * cuentan sesiones, mientras que la racha cuenta días. El promedio va desde la semana de la
+ * primera sesión hasta la actual, ambas incluidas.
+ */
+fun resumenGym(
+    fechas: List<LocalDate>,
+    volumenTotalKg: Double,
+    hoy: LocalDate,
+    meta: Int = META_SEMANAL_DEFECTO
+): ResumenGym {
+    val total = fechas.size
+    val mejor = mejorRacha(fechas, meta)
+    val rachaActual = calcularRacha(fechas, hoy, meta)
+    val semanas = fechas.minOrNull()?.let { primera ->
+        ChronoUnit.WEEKS.between(primera.with(DayOfWeek.MONDAY), hoy.with(DayOfWeek.MONDAY)) + 1
+    } ?: 0L
+    val logros = LOGROS_SESIONES.map { (n, icono) ->
+        Logro(TipoLogro.SESIONES, n, icono, conseguido = total >= n, actual = total)
+    } + LOGROS_SEMANAS.map { (n, icono) ->
+        Logro(TipoLogro.SEMANAS_SEGUIDAS, n, icono, conseguido = mejor >= n, actual = rachaActual)
+    }
+    return ResumenGym(
+        sesionesTotales = total,
+        mejorRacha = mejor,
+        volumenTotalKg = volumenTotalKg,
+        promedioSemanal = if (semanas > 0) total.toDouble() / semanas else 0.0,
+        logros = logros
+    )
+}
+
+// Peso total en la unidad elegida: toneladas si pasa de 1000 kg; en libras, con separador de miles.
+fun formatearVolumen(volumenKg: Double, unidad: UnidadPeso): String = when (unidad) {
+    UnidadPeso.KG ->
+        if (volumenKg >= 1000) "${formatearPeso(Math.round(volumenKg / 100) / 10.0)} t"
+        else "${Math.round(volumenKg)} kg"
+    UnidadPeso.LB -> "%,d lb".format(Locale.forLanguageTag("es-ES"), Math.round(unidad.desdeKg(volumenKg)))
 }

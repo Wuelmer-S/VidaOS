@@ -79,6 +79,10 @@ interface GymDao {
     @Query("SELECT * FROM sesiones_gym ORDER BY fecha DESC, id DESC")
     fun getSesiones(): Flow<List<SesionGym>>
 
+    // Peso total levantado (kg × reps de cada serie con peso). En unilaterales cuenta un lado.
+    @Query("SELECT COALESCE(SUM(pesoKg * repeticiones), 0) FROM series_gym WHERE pesoKg IS NOT NULL AND repeticiones IS NOT NULL")
+    fun getVolumenTotalKg(): Flow<Double>
+
     @Query("SELECT * FROM series_gym WHERE sesionId = :sesionId ORDER BY orden")
     suspend fun getSeriesDeSesion(sesionId: Long): List<SerieGym>
 
