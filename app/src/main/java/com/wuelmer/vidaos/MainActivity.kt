@@ -294,10 +294,12 @@ private fun NavHostController.irAModulo(modulo: Modulo) {
     }
 }
 
+// Sin saveState/restoreState: anidado con el de irAModulo dejaba trabada la barra de módulos
+// (p. ej. Sesiones → Progreso → Sesiones → Finanzas no navegaba). La primera pestaña nunca se
+// saca de la pila y las demás se reconstruyen desde la base de datos, así que no se pierde nada.
 private fun NavHostController.irAPestana(pestana: Pestana) {
     navigate(pestana.ruta) {
-        popUpTo(Pestana.delModulo(pestana.modulo).first().ruta) { saveState = true }
+        popUpTo(Pestana.delModulo(pestana.modulo).first().ruta)
         launchSingleTop = true
-        restoreState = true
     }
 }
