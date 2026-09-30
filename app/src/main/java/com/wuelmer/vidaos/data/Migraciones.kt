@@ -22,3 +22,11 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         SeedGym.insertar(db)
     }
 }
+
+// v3: borrador de la sesión de gym en curso. No toca tablas existentes.
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `borrador_series` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `diaRutinaId` INTEGER NOT NULL, `rutinaEjercicioId` INTEGER NOT NULL, `ejercicioId` INTEGER NOT NULL, `orden` INTEGER NOT NULL, `reps` TEXT NOT NULL, `peso` TEXT NOT NULL, `segundos` TEXT NOT NULL)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_borrador_series_diaRutinaId` ON `borrador_series` (`diaRutinaId`)")
+    }
+}

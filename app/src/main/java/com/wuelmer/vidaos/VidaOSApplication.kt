@@ -7,7 +7,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 
 class VidaOSApplication : Application() {
-    private val applicationScope = CoroutineScope(SupervisorJob())
+    // Para trabajo que debe terminar aunque se cierre la pantalla que lo inició.
+    val applicationScope = CoroutineScope(SupervisorJob())
     val database: VidaOSDatabase by lazy { VidaOSDatabase.getInstance(this, applicationScope) }
     val preferencias: PreferenciasRepository by lazy { PreferenciasRepository(this) }
 }

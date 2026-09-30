@@ -18,9 +18,10 @@ import kotlinx.coroutines.launch
         DiaRutina::class,
         RutinaEjercicio::class,
         SesionGym::class,
-        SerieGym::class
+        SerieGym::class,
+        BorradorSerie::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -41,7 +42,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
                     VidaOSDatabase::class.java,
                     "vidaos.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .addCallback(SeedCategoriasCallback(scope))
                     .build()
                 INSTANCE = instance

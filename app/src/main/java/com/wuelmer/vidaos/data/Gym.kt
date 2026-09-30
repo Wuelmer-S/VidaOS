@@ -135,3 +135,18 @@ data class SerieGym(
     val segundos: Int? = null,
     val pesoKg: Double? = null
 )
+
+// Sesión en curso aún sin guardar: lo que el usuario escribió en cada serie, tal cual (sin validar).
+// Se reemplaza entero en cada cambio y se borra al guardar o descartar la sesión.
+@Entity(tableName = "borrador_series", indices = [Index("diaRutinaId")])
+data class BorradorSerie(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val diaRutinaId: Long,
+    val rutinaEjercicioId: Long,
+    val ejercicioId: Long,
+    val orden: Int,
+    val reps: String,
+    val peso: String,
+    val segundos: String
+)

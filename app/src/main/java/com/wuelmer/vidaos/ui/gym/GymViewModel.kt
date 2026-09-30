@@ -17,7 +17,8 @@ import kotlinx.coroutines.flow.stateIn
 
 data class GymUiState(
     val dias: List<DiaRutina> = emptyList(),
-    val ultimasSesiones: List<SesionGym> = emptyList()
+    val ultimasSesiones: List<SesionGym> = emptyList(),
+    val diasConBorrador: Set<Long> = emptySet()
 )
 
 private const val LIMITE_ULTIMAS_SESIONES = 5
@@ -26,9 +27,10 @@ class GymViewModel(gymDao: GymDao) : ViewModel() {
 
     val uiState: StateFlow<GymUiState> = combine(
         gymDao.getDiasDeRutina(SeedGym.RUTINA_INICIAL_ID),
-        gymDao.getUltimasSesiones(LIMITE_ULTIMAS_SESIONES)
-    ) { dias, sesiones ->
-        GymUiState(dias = dias, ultimasSesiones = sesiones)
+        gymDao.getUltimasSesiones(LIMITE_ULTIMAS_SESIONES),
+        gymDao.getDiasConBorrador()
+    ) { dias, sesiones, conBorrador ->
+        GymUiState(dias = dias, ultimasSesiones = sesiones, diasConBorrador = conBorrador.toSet())
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
