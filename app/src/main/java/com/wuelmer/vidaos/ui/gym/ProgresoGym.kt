@@ -70,3 +70,52 @@ fun mensajeSemana(p: ProgresoSemana): String {
         else -> "$falta ${sesiones(faltan)}, tienes hasta el domingo 💪"
     }
 }
+
+// --- Calendario de constancia ---
+
+const val SEMANAS_CALENDARIO = 16
+
+data class DiaCalendario(
+    val fecha: LocalDate,
+    // Sesión a abrir al tocar el día (si hubo varias ese día, la última registrada).
+    val sesionId: Long?,
+    val esHoy: Boolean,
+    val esFuturo: Boolean
+)
+
+data class SemanaCalendario(
+    val dias: List<DiaCalendario>,
+    // Mes a rotular sobre la columna: solo en la primera semana y cuando cambia el mes.
+    val etiquetaMes: String?
+)
+
+private val MESES = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
+
+/** Las últimas [semanas] semanas terminando en la actual; cada semana va de lunes a domingo. */
+fun calendarioConstancia(
+    sesiones: List<Pair<Long, LocalDate>>,
+    hoy: LocalDate,
+    semanas: Int = SEMANAS_CALENDARIO
+): List<SemanaCalendario> {
+    val sesionPorFecha = sesiones.groupBy({ it.second }, { it.first }).mapValues { (_, ids) -> ids.max() }
+    val primerLunes = hoy.with(DayOfWeek.MONDAY).minusWeeks((semanas - 1).toLong())
+    var mesAnterior: Int? = null
+    return (0 until semanas).map { w ->
+        val lunes = primerLunes.plusWeeks(w.toLong())
+        val mes = lunes.monthValue
+        val etiqueta = if (mes != mesAnterior) MESES[mes - 1] else null
+        mesAnterior = mes
+        SemanaCalendario(
+            dias = (0L..6L).map { d ->
+                val fecha = lunes.plusDays(d)
+                DiaCalendario(
+                    fecha = fecha,
+                    sesionId = sesionPorFecha[fecha],
+                    esHoy = fecha == hoy,
+                    esFuturo = fecha > hoy
+                )
+            },
+            etiquetaMes = etiqueta
+        )
+    }
+}

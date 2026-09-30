@@ -8,7 +8,6 @@ import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
-import java.time.LocalDate
 
 data class EjercicioDelDia(
     @Embedded val objetivo: RutinaEjercicio,
@@ -79,9 +78,6 @@ interface GymDao {
 
     @Query("SELECT * FROM sesiones_gym ORDER BY fecha DESC, id DESC")
     fun getSesiones(): Flow<List<SesionGym>>
-
-    @Query("SELECT fecha FROM sesiones_gym")
-    fun fechas(): Flow<List<LocalDate>>
 
     @Query("SELECT * FROM series_gym WHERE sesionId = :sesionId ORDER BY orden")
     suspend fun getSeriesDeSesion(sesionId: Long): List<SerieGym>
