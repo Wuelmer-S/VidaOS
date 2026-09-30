@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wuelmer.vidaos.data.RANGO_META_SEMANAL
 import com.wuelmer.vidaos.data.Tema
 import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.ui.navegacion.Modulo
@@ -71,6 +72,7 @@ fun ConfiguracionRoute(
         onTemaChange = viewModel::onTemaChange,
         onModuloVisibleChange = viewModel::onModuloVisibleChange,
         onUnidadPesoChange = viewModel::onUnidadPesoChange,
+        onMetaSemanalChange = viewModel::onMetaSemanalChange,
         modifier = modifier
     )
 }
@@ -88,6 +90,7 @@ fun ConfiguracionScreen(
     onTemaChange: (Tema) -> Unit,
     onModuloVisibleChange: (Modulo, Boolean) -> Unit,
     onUnidadPesoChange: (UnidadPeso) -> Unit,
+    onMetaSemanalChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var respaldoARestaurar by remember { mutableStateOf<Uri?>(null) }
@@ -199,6 +202,39 @@ fun ConfiguracionScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = TextoSuave
             )
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Meta semanal", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = "Sesiones por semana para sumar a la racha",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextoSuave
+                        )
+                    }
+                    val meta = uiState.metaSemanal
+                    TextButton(
+                        onClick = { onMetaSemanalChange(meta - 1) },
+                        enabled = !uiState.cargando && meta > RANGO_META_SEMANAL.first
+                    ) { Text("−", style = MaterialTheme.typography.titleLarge) }
+                    Text(
+                        text = "$meta",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    TextButton(
+                        onClick = { onMetaSemanalChange(meta + 1) },
+                        enabled = !uiState.cargando && meta < RANGO_META_SEMANAL.last
+                    ) { Text("+", style = MaterialTheme.typography.titleLarge) }
+                }
+            }
 
             Text(
                 text = "Respaldo",
