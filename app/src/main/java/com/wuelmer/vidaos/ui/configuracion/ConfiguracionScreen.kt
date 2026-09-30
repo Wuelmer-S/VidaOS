@@ -1,5 +1,8 @@
 package com.wuelmer.vidaos.ui.configuracion
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -24,10 +29,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -40,6 +49,7 @@ import com.wuelmer.vidaos.ui.navegacion.Modulo
 import com.wuelmer.vidaos.ui.navegacion.modulosVisibles
 import com.wuelmer.vidaos.ui.navegacion.puedeOcultar
 import com.wuelmer.vidaos.ui.theme.TextoSuave
+import java.time.LocalDate
 
 @Composable
 fun ConfiguracionRoute(
@@ -48,8 +58,15 @@ fun ConfiguracionRoute(
     viewModel: ConfiguracionViewModel = viewModel(factory = ConfiguracionViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val mensajeRespaldo by viewModel.mensajeRespaldo.collectAsState()
+    val procesandoRespaldo by viewModel.procesandoRespaldo.collectAsState()
     ConfiguracionScreen(
         uiState = uiState,
+        mensajeRespaldo = mensajeRespaldo,
+        procesandoRespaldo = procesandoRespaldo,
+        onExportar = viewModel::exportarRespaldo,
+        onRestaurar = viewModel::restaurarRespaldo,
+        onMensajeRespaldoVisto = viewModel::onMensajeRespaldoVisto,
         onBackClick = onBackClick,
         onTemaChange = viewModel::onTemaChange,
         onModuloVisibleChange = viewModel::onModuloVisibleChange,
@@ -62,12 +79,25 @@ fun ConfiguracionRoute(
 @Composable
 fun ConfiguracionScreen(
     uiState: ConfiguracionUiState,
+    mensajeRespaldo: String?,
+    procesandoRespaldo: Boolean,
+    onExportar: (Uri) -> Unit,
+    onRestaurar: (Uri) -> Unit,
+    onMensajeRespaldoVisto: () -> Unit,
     onBackClick: () -> Unit,
     onTemaChange: (Tema) -> Unit,
     onModuloVisibleChange: (Modulo, Boolean) -> Unit,
     onUnidadPesoChange: (UnidadPeso) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var respaldoARestaurar by remember { mutableStateOf<Uri?>(null) }
+    val exportarLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri -> uri?.let(onExportar) }
+    val restaurarLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> respaldoARestaurar = uri }
+
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -169,7 +199,90 @@ fun ConfiguracionScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = TextoSuave
             )
+
+            Text(
+                text = "Respaldo",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(top = 10.dp)
+            )
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Guarda una copia de Finanzas y Gym en un archivo (por ejemplo en Drive o Descargas). " +
+                            "Si cambias de teléfono o borras los datos de la app, puedes restaurarla.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextoSuave
+                    )
+                    OutlinedButton(
+                        onClick = { exportarLauncher.launch("vidaos-respaldo-${LocalDate.now()}.db") },
+                        enabled = !procesandoRespaldo,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Exportar respaldo") }
+                    OutlinedButton(
+                        onClick = { restaurarLauncher.launch(arrayOf("*/*")) },
+                        enabled = !procesandoRespaldo,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Restaurar respaldo") }
+                    if (procesandoRespaldo) {
+                        Text("Procesando...", style = MaterialTheme.typography.bodySmall, color = TextoSuave)
+                    }
+                }
+            }
         }
+    }
+
+    DialogosRespaldo(
+        respaldoARestaurar = respaldoARestaurar,
+        mensajeRespaldo = mensajeRespaldo,
+        onConfirmarRestaurar = { uri ->
+            respaldoARestaurar = null
+            onRestaurar(uri)
+        },
+        onCancelarRestaurar = { respaldoARestaurar = null },
+        onMensajeVisto = onMensajeRespaldoVisto
+    )
+}
+
+@Composable
+private fun DialogosRespaldo(
+    respaldoARestaurar: Uri?,
+    mensajeRespaldo: String?,
+    onConfirmarRestaurar: (Uri) -> Unit,
+    onCancelarRestaurar: () -> Unit,
+    onMensajeVisto: () -> Unit
+) {
+    if (respaldoARestaurar != null) {
+        AlertDialog(
+            onDismissRequest = onCancelarRestaurar,
+            title = { Text("¿Restaurar este respaldo?") },
+            text = {
+                Text(
+                    "Se reemplazarán TODOS tus datos actuales de Finanzas y Gym por los del archivo. " +
+                        "Si no estás seguro, exporta primero un respaldo de lo que tienes ahora. La app se reiniciará."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onConfirmarRestaurar(respaldoARestaurar) }) { Text("Restaurar") }
+            },
+            dismissButton = {
+                TextButton(onClick = onCancelarRestaurar) { Text("Cancelar") }
+            }
+        )
+    }
+    if (mensajeRespaldo != null) {
+        AlertDialog(
+            onDismissRequest = onMensajeVisto,
+            text = { Text(mensajeRespaldo) },
+            confirmButton = { TextButton(onClick = onMensajeVisto) { Text("OK") } }
+        )
     }
 }
 

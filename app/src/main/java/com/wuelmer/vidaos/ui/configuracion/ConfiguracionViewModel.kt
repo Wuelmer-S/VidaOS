@@ -1,5 +1,6 @@
 package com.wuelmer.vidaos.ui.configuracion
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -7,11 +8,15 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
 import com.wuelmer.vidaos.data.PreferenciasRepository
+import com.wuelmer.vidaos.data.RespaldoRepository
+import com.wuelmer.vidaos.data.ResultadoRespaldo
 import com.wuelmer.vidaos.data.Tema
 import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.ui.navegacion.Modulo
 import com.wuelmer.vidaos.ui.navegacion.puedeOcultar
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -24,7 +29,17 @@ data class ConfiguracionUiState(
     val unidadPeso: UnidadPeso = UnidadPeso.KG
 )
 
-class ConfiguracionViewModel(private val preferencias: PreferenciasRepository) : ViewModel() {
+class ConfiguracionViewModel(
+    private val preferencias: PreferenciasRepository,
+    private val respaldo: RespaldoRepository
+) : ViewModel() {
+
+    // Resultado de la última operación de respaldo, para mostrarlo en pantalla.
+    private val _mensajeRespaldo = MutableStateFlow<String?>(null)
+    val mensajeRespaldo: StateFlow<String?> = _mensajeRespaldo.asStateFlow()
+
+    private val _procesandoRespaldo = MutableStateFlow(false)
+    val procesandoRespaldo: StateFlow<Boolean> = _procesandoRespaldo.asStateFlow()
 
     val uiState: StateFlow<ConfiguracionUiState> = preferencias.preferencias
         .map {
@@ -49,6 +64,31 @@ class ConfiguracionViewModel(private val preferencias: PreferenciasRepository) :
         viewModelScope.launch { preferencias.setUnidadPeso(unidad) }
     }
 
+    fun exportarRespaldo(destino: Uri) = operarRespaldo {
+        when (val r = respaldo.exportar(destino)) {
+            ResultadoRespaldo.Ok -> "Respaldo guardado."
+            is ResultadoRespaldo.Error -> r.mensaje
+        }
+    }
+
+    // Si sale bien la app se reinicia sola; aquí solo llegan los errores.
+    fun restaurarRespaldo(origen: Uri) = operarRespaldo {
+        (respaldo.restaurar(origen) as? ResultadoRespaldo.Error)?.mensaje
+    }
+
+    fun onMensajeRespaldoVisto() {
+        _mensajeRespaldo.value = null
+    }
+
+    private fun operarRespaldo(operacion: suspend () -> String?) {
+        if (_procesandoRespaldo.value) return
+        _procesandoRespaldo.value = true
+        viewModelScope.launch {
+            _mensajeRespaldo.value = operacion()
+            _procesandoRespaldo.value = false
+        }
+    }
+
     fun onModuloVisibleChange(modulo: Modulo, visible: Boolean) {
         if (!visible && !puedeOcultar(modulo, uiState.value.modulosOcultos)) return
         viewModelScope.launch { preferencias.setModuloOculto(modulo.name, oculto = !visible) }
@@ -58,7 +98,7 @@ class ConfiguracionViewModel(private val preferencias: PreferenciasRepository) :
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as VidaOSApplication
-                ConfiguracionViewModel(preferencias = application.preferencias)
+                ConfiguracionViewModel(preferencias = application.preferencias, respaldo = application.respaldo)
             }
         }
     }
