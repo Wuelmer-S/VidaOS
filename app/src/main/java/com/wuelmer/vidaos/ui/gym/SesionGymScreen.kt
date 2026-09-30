@@ -1,6 +1,7 @@
 package com.wuelmer.vidaos.ui.gym
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,9 +19,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -60,22 +66,25 @@ import com.wuelmer.vidaos.data.TipoEjercicio
 import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.ui.theme.ColorIngreso
 import com.wuelmer.vidaos.ui.theme.TextoSuave
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
 fun SesionGymRoute(
     diaId: Long,
+    sesionId: Long?,
     onBackClick: () -> Unit,
     onGuardado: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as VidaOSApplication
-    val factory = remember(diaId) {
+    val factory = remember(diaId, sesionId) {
         viewModelFactory {
             initializer {
                 SesionGymViewModel(
                     diaRutinaId = diaId,
+                    sesionId = sesionId,
                     database = application.database,
                     preferencias = application.preferencias,
                     appScope = application.applicationScope
@@ -83,7 +92,7 @@ fun SesionGymRoute(
             }
         }
     }
-    val viewModel: SesionGymViewModel = viewModel(key = "sesion_gym_$diaId", factory = factory)
+    val viewModel: SesionGymViewModel = viewModel(key = "sesion_gym_${diaId}_$sesionId", factory = factory)
     val uiState by viewModel.uiState.collectAsState()
 
     SesionGymScreen(
@@ -97,6 +106,7 @@ fun SesionGymRoute(
         onEliminarSerie = viewModel::onEliminarSerie,
         onGuardarClick = { viewModel.guardar(onGuardado) },
         onDescartarClick = viewModel::descartarBorrador,
+        onFechaChange = viewModel::onFechaChange,
         modifier = modifier
     )
 }
@@ -114,9 +124,11 @@ fun SesionGymScreen(
     onEliminarSerie: (rutinaEjercicioId: Long, indice: Int) -> Unit,
     onGuardarClick: () -> Unit,
     onDescartarClick: () -> Unit,
+    onFechaChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var confirmarDescarte by remember { mutableStateOf(false) }
+    var elegirFecha by remember { mutableStateOf(false) }
     val fechaFormateada = remember(uiState.fecha) {
         uiState.fecha
             .format(DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale.forLanguageTag("es-ES")))
@@ -127,7 +139,7 @@ fun SesionGymScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(uiState.nombreDia) },
+                title = { Text(if (uiState.editando) "Editar · ${uiState.nombreDia}" else uiState.nombreDia) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -153,7 +165,26 @@ fun SesionGymScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(text = fechaFormateada, style = MaterialTheme.typography.bodyMedium, color = TextoSuave)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { elegirFecha = true }
+                    .padding(vertical = 4.dp)
+            ) {
+                Icon(
+                    Icons.Filled.DateRange,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 6.dp)
+                )
+                Text(text = fechaFormateada, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = " · cambiar",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
 
             if (uiState.recuperada) {
                 Surface(
@@ -210,15 +241,28 @@ fun SesionGymScreen(
                 shape = RoundedCornerShape(50),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Guardar sesión")
+                Text(if (uiState.editando) "Guardar cambios" else "Guardar sesión")
             }
-            Text(
-                text = "Lo que escribes se guarda solo; si sales, al volver sigue aquí.",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextoSuave,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+            if (!uiState.editando) {
+                Text(
+                    text = "Lo que escribes se guarda solo; si sales, al volver sigue aquí.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextoSuave,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
         }
+    }
+
+    if (elegirFecha) {
+        SelectorFecha(
+            fecha = uiState.fecha,
+            onConfirmar = {
+                elegirFecha = false
+                onFechaChange(it)
+            },
+            onCancelar = { elegirFecha = false }
+        )
     }
 
     if (confirmarDescarte) {
@@ -238,6 +282,37 @@ fun SesionGymScreen(
         )
     }
 }
+
+// El DatePicker trabaja en milisegundos UTC; se convierte con epochDay para no correr la fecha por la zona horaria.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectorFecha(
+    fecha: LocalDate,
+    onConfirmar: (LocalDate) -> Unit,
+    onCancelar: () -> Unit
+) {
+    val hoy = remember { LocalDate.now() }
+    val estado = rememberDatePickerState(
+        initialSelectedDateMillis = fecha.toEpochDay() * MILIS_POR_DIA,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis / MILIS_POR_DIA <= hoy.toEpochDay()
+            override fun isSelectableYear(year: Int) = year <= hoy.year
+        }
+    )
+    DatePickerDialog(
+        onDismissRequest = onCancelar,
+        confirmButton = {
+            TextButton(onClick = {
+                estado.selectedDateMillis?.let { onConfirmar(LocalDate.ofEpochDay(it / MILIS_POR_DIA)) } ?: onCancelar()
+            }) { Text("Aceptar") }
+        },
+        dismissButton = { TextButton(onClick = onCancelar) { Text("Cancelar") } }
+    ) {
+        DatePicker(state = estado)
+    }
+}
+
+private const val MILIS_POR_DIA = 86_400_000L
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

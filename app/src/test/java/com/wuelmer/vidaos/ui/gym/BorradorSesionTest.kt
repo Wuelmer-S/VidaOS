@@ -2,7 +2,9 @@ package com.wuelmer.vidaos.ui.gym
 
 import com.wuelmer.vidaos.data.BorradorSerie
 import com.wuelmer.vidaos.data.EjercicioGym
+import com.wuelmer.vidaos.data.SerieGym
 import com.wuelmer.vidaos.data.TipoEjercicio
+import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.data.ZonaEjercicio
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -77,5 +79,42 @@ class BorradorSesionTest {
             BorradorSerie(0, 5, 1, pesoMuerto.id, orden = 0, reps = "8", peso = "60", segundos = "")
         )
         assertEquals(listOf("8", "7"), aplicarBorrador(iniciales, borrador)[0].inputs.map { it.reps })
+    }
+
+    // --- Editar una sesión guardada ---
+
+    private fun guardada(ejercicioId: Long, orden: Int, reps: Int?, pesoKg: Double? = null) =
+        SerieGym(id = orden.toLong(), sesionId = 1, ejercicioId = ejercicioId, orden = orden, repeticiones = reps, pesoKg = pesoKg)
+
+    @Test
+    fun editar_cargaLasSeriesEnSuEjercicio() {
+        val series = listOf(guardada(pesoMuerto.id, 1, 8, 60.0), guardada(pesoMuerto.id, 2, 7, 62.5), guardada(dominadas.id, 3, 10))
+        val (ejercicios, ajenas) = aplicarSeriesGuardadas(iniciales, series, UnidadPeso.KG)
+        assertEquals(listOf("8", "7"), ejercicios[0].inputs.map { it.reps })
+        assertEquals(listOf("60", "62,5"), ejercicios[0].inputs.map { it.peso })
+        assertEquals(listOf("10"), ejercicios[1].inputs.map { it.reps })
+        assertTrue(ajenas.isEmpty())
+    }
+
+    @Test
+    fun editar_respetaLaAlternativaUsada() {
+        val series = listOf(guardada(jalon.id, 1, 10, 45.0))
+        val (ejercicios, _) = aplicarSeriesGuardadas(iniciales, series, UnidadPeso.KG)
+        assertEquals(jalon.id, ejercicios[1].elegidoId)
+        assertEquals(3, ejercicios[0].inputs.size) // sin series guardadas: filas vacías del objetivo
+    }
+
+    @Test
+    fun editar_enLibras_muestraElPesoConvertido() {
+        val series = listOf(guardada(pesoMuerto.id, 1, 8, UnidadPeso.LB.aKg(135.0)))
+        val (ejercicios, _) = aplicarSeriesGuardadas(iniciales, series, UnidadPeso.LB)
+        assertEquals("135", ejercicios[0].inputs.single().peso)
+    }
+
+    @Test
+    fun editar_seriesDeOtroEjercicio_seConservanAparte() {
+        val series = listOf(guardada(pesoMuerto.id, 1, 8, 60.0), guardada(999, 2, 12, 20.0))
+        val (_, ajenas) = aplicarSeriesGuardadas(iniciales, series, UnidadPeso.KG)
+        assertEquals(listOf(999L), ajenas.map { it.ejercicioId })
     }
 }
