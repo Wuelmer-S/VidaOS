@@ -48,6 +48,7 @@ import com.wuelmer.vidaos.ui.configuracion.ConfiguracionRoute
 import com.wuelmer.vidaos.ui.detalle.DetalleMovimientoRoute
 import com.wuelmer.vidaos.ui.gym.DetalleSesionGymRoute
 import com.wuelmer.vidaos.ui.gym.GymRoute
+import com.wuelmer.vidaos.ui.gym.ProgresoGymRoute
 import com.wuelmer.vidaos.ui.gym.SesionGymRoute
 import com.wuelmer.vidaos.ui.historial.HistorialRoute
 import com.wuelmer.vidaos.ui.movimientos.MovimientosRoute
@@ -57,16 +58,22 @@ import com.wuelmer.vidaos.ui.navegacion.modulosVisibles
 import com.wuelmer.vidaos.ui.registrargasto.RegistrarGastoRoute
 import com.wuelmer.vidaos.ui.theme.VidaOSTheme
 
-private enum class PestanaFinanzas(val ruta: String, val etiqueta: String) {
-    REGISTRAR("registrar", "Registrar"),
-    MOVIMIENTOS("movimientos", "Movimientos")
+// Pestañas superiores de cada módulo; la primera de cada uno es su pantalla de inicio.
+private enum class Pestana(val modulo: Modulo, val ruta: String, val etiqueta: String) {
+    REGISTRAR(Modulo.FINANZAS, "registrar", "Registrar"),
+    MOVIMIENTOS(Modulo.FINANZAS, "movimientos", "Movimientos"),
+    GYM_PROGRESO(Modulo.GYM, "gym_progreso", "Progreso"),
+    GYM_SESIONES(Modulo.GYM, "gym_inicio", "Sesiones");
+
+    companion object {
+        fun delModulo(modulo: Modulo): List<Pestana> = entries.filter { it.modulo == modulo }
+    }
 }
 
 private const val RUTA_HISTORIAL = "historial"
 private const val RUTA_CATEGORIAS = "categorias"
 private const val ARG_MOVIMIENTO_ID = "movimientoId"
 private const val RUTA_DETALLE = "detalle/{$ARG_MOVIMIENTO_ID}"
-private const val RUTA_GYM_INICIO = "gym_inicio"
 private const val ARG_DIA_ID = "diaId"
 private const val ARG_SESION_ID = "sesionId"
 // sesionId opcional: sin él se registra una sesión nueva; con él se edita la guardada.
@@ -120,8 +127,8 @@ private fun VidaOSApp(modulos: List<Modulo>) {
     val moduloActual = Modulo.entries.firstOrNull { modulo ->
         destinoActual?.hierarchy?.any { it.route == modulo.ruta } == true
     }
-    val pestanaActual = PestanaFinanzas.entries.firstOrNull { it.ruta == rutaActual }
-    val esPantallaPrincipal = pestanaActual != null || rutaActual == RUTA_GYM_INICIO
+    val pestanaActual = Pestana.entries.firstOrNull { it.ruta == rutaActual }
+    val esPantallaPrincipal = pestanaActual != null
 
     // Si se ocultó el módulo en el que estaba (p. ej. al volver de Configuración), ir al primero visible.
     LaunchedEffect(moduloActual, modulos) {
@@ -158,11 +165,11 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                 modifier = Modifier.weight(1f)
             ) {
                 navigation(
-                    startDestination = PestanaFinanzas.REGISTRAR.ruta,
+                    startDestination = Pestana.REGISTRAR.ruta,
                     route = Modulo.FINANZAS.ruta
                 ) {
-                    composable(PestanaFinanzas.REGISTRAR.ruta) { RegistrarGastoRoute() }
-                    composable(PestanaFinanzas.MOVIMIENTOS.ruta) {
+                    composable(Pestana.REGISTRAR.ruta) { RegistrarGastoRoute() }
+                    composable(Pestana.MOVIMIENTOS.ruta) {
                         MovimientosRoute(
                             onVerHistorialClick = { navController.navigate(RUTA_HISTORIAL) },
                             onMovimientoClick = { id -> navController.navigate("detalle/$id") },
@@ -193,10 +200,11 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                     ConfiguracionRoute(onBackClick = { navController.popBackStack() })
                 }
                 navigation(
-                    startDestination = RUTA_GYM_INICIO,
+                    startDestination = Pestana.GYM_PROGRESO.ruta,
                     route = Modulo.GYM.ruta
                 ) {
-                    composable(RUTA_GYM_INICIO) {
+                    composable(Pestana.GYM_PROGRESO.ruta) { ProgresoGymRoute() }
+                    composable(Pestana.GYM_SESIONES.ruta) {
                         GymRoute(
                             onIniciarSesion = { diaId -> navController.navigate("gym_sesion/$diaId") },
                             onSesionClick = { id -> navController.navigate("gym_detalle/$id") }
@@ -241,17 +249,18 @@ private fun VidaOSApp(modulos: List<Modulo>) {
 // Fila superior de las pantallas principales: pestañas (Finanzas) o título (resto) y el acceso a Configuración.
 @Composable
 private fun EncabezadoModulo(
-    pestanaActual: PestanaFinanzas?,
+    pestanaActual: Pestana?,
     titulo: String,
-    onPestanaClick: (PestanaFinanzas) -> Unit,
+    onPestanaClick: (Pestana) -> Unit,
     onConfiguracionClick: () -> Unit
 ) {
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
                 if (pestanaActual != null) {
-                    PrimaryTabRow(selectedTabIndex = pestanaActual.ordinal) {
-                        PestanaFinanzas.entries.forEach { pestana ->
+                    val pestanas = Pestana.delModulo(pestanaActual.modulo)
+                    PrimaryTabRow(selectedTabIndex = pestanas.indexOf(pestanaActual)) {
+                        pestanas.forEach { pestana ->
                             Tab(
                                 selected = pestana == pestanaActual,
                                 onClick = { onPestanaClick(pestana) },
@@ -283,9 +292,9 @@ private fun NavHostController.irAModulo(modulo: Modulo) {
     }
 }
 
-private fun NavHostController.irAPestana(pestana: PestanaFinanzas) {
+private fun NavHostController.irAPestana(pestana: Pestana) {
     navigate(pestana.ruta) {
-        popUpTo(PestanaFinanzas.REGISTRAR.ruta) { saveState = true }
+        popUpTo(Pestana.delModulo(pestana.modulo).first().ruta) { saveState = true }
         launchSingleTop = true
         restoreState = true
     }
