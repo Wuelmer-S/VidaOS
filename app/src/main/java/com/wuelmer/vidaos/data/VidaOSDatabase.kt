@@ -32,6 +32,8 @@ abstract class VidaOSDatabase : RoomDatabase() {
     abstract fun gymDao(): GymDao
 
     companion object {
+        const val NOMBRE_ARCHIVO = "vidaos.db"
+
         @Volatile
         private var INSTANCE: VidaOSDatabase? = null
 
@@ -40,7 +42,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     VidaOSDatabase::class.java,
-                    "vidaos.db"
+                    NOMBRE_ARCHIVO
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .addCallback(SeedCategoriasCallback(scope))
