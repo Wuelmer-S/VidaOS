@@ -41,6 +41,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
 import com.wuelmer.vidaos.data.SerieGym
 import com.wuelmer.vidaos.data.TipoEjercicio
+import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.ui.theme.ColorGasto
 import com.wuelmer.vidaos.ui.theme.TextoSuave
 import java.time.format.DateTimeFormatter
@@ -56,7 +57,11 @@ fun DetalleSesionGymRoute(
     val factory = remember(sesionId) {
         viewModelFactory {
             initializer {
-                DetalleSesionGymViewModel(sesionId = sesionId, gymDao = application.database.gymDao())
+                DetalleSesionGymViewModel(
+                    sesionId = sesionId,
+                    gymDao = application.database.gymDao(),
+                    preferencias = application.preferencias
+                )
             }
         }
     }
@@ -143,7 +148,7 @@ fun DetalleSesionGymScreen(
                         )
                         grupo.series.forEachIndexed { i, serie ->
                             Text(
-                                text = "Serie ${i + 1}: ${textoSerie(serie, grupo.ejercicio.tipo, grupo.ejercicio.unilateral)}",
+                                text = "Serie ${i + 1}: ${textoSerie(serie, grupo.ejercicio.tipo, grupo.ejercicio.unilateral, uiState.unidad)}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -180,10 +185,10 @@ fun DetalleSesionGymScreen(
     }
 }
 
-private fun textoSerie(serie: SerieGym, tipo: TipoEjercicio, unilateral: Boolean): String {
+private fun textoSerie(serie: SerieGym, tipo: TipoEjercicio, unilateral: Boolean, unidad: UnidadPeso): String {
     val lado = if (unilateral) "/lado" else ""
     return when (tipo) {
-        TipoEjercicio.CON_PESO -> "${serie.repeticiones} reps$lado × ${formatearPeso(serie.pesoKg)} kg"
+        TipoEjercicio.CON_PESO -> "${serie.repeticiones} reps$lado × ${formatearPesoKg(serie.pesoKg, unidad)} ${unidad.simbolo}"
         TipoEjercicio.PESO_CORPORAL -> "${serie.repeticiones} reps$lado"
         TipoEjercicio.TIEMPO -> "${serie.segundos} s"
     }

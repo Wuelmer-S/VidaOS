@@ -54,6 +54,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
 import com.wuelmer.vidaos.data.EjercicioGym
 import com.wuelmer.vidaos.data.TipoEjercicio
+import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.ui.theme.ColorIngreso
 import com.wuelmer.vidaos.ui.theme.TextoSuave
 import java.time.format.DateTimeFormatter
@@ -69,7 +70,13 @@ fun SesionGymRoute(
     val application = LocalContext.current.applicationContext as VidaOSApplication
     val factory = remember(diaId) {
         viewModelFactory {
-            initializer { SesionGymViewModel(diaRutinaId = diaId, database = application.database) }
+            initializer {
+                SesionGymViewModel(
+                    diaRutinaId = diaId,
+                    database = application.database,
+                    preferencias = application.preferencias
+                )
+            }
         }
     }
     val viewModel: SesionGymViewModel = viewModel(key = "sesion_gym_$diaId", factory = factory)
@@ -216,7 +223,7 @@ private fun EjercicioCard(
             )
             if (ejercicio.ultimaVez.isNotEmpty()) {
                 Text(
-                    text = "Última vez: ${textoUltimaVez(elegido, ejercicio.ultimaVez)}",
+                    text = "Última vez: ${textoUltimaVez(elegido, ejercicio.ultimaVez, ejercicio.unidad)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextoSuave
                 )
@@ -224,7 +231,7 @@ private fun EjercicioCard(
             ejercicio.sugerencia?.let { sugerencia ->
                 val subir = sugerencia is Sugerencia.SubirPeso || sugerencia is Sugerencia.RangoCompletado
                 Text(
-                    text = textoSugerencia(sugerencia),
+                    text = textoSugerencia(sugerencia, ejercicio.unidad),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = if (subir) ColorIngreso else MaterialTheme.colorScheme.onSurface
@@ -253,6 +260,7 @@ private fun EjercicioCard(
                             indice = indice,
                             input = input,
                             ejercicio = elegido,
+                            unidad = ejercicio.unidad,
                             error = mostrarErrores && input.evaluar(elegido.tipo) is ResultadoSerie.Invalida,
                             onRepsChange = { onRepsChange(indice, it) },
                             onPesoChange = { onPesoChange(indice, it) },
@@ -318,6 +326,7 @@ private fun SerieFila(
     indice: Int,
     input: SerieInput,
     ejercicio: EjercicioGym,
+    unidad: UnidadPeso,
     error: Boolean,
     onRepsChange: (String) -> Unit,
     onPesoChange: (String) -> Unit,
@@ -357,7 +366,7 @@ private fun SerieFila(
                 OutlinedTextField(
                     value = input.peso,
                     onValueChange = onPesoChange,
-                    label = { Text("Peso (kg)") },
+                    label = { Text("Peso (${unidad.simbolo})") },
                     singleLine = true,
                     isError = error,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -368,9 +377,9 @@ private fun SerieFila(
     }
 }
 
-private fun textoSugerencia(sugerencia: Sugerencia): String = when (sugerencia) {
-    is Sugerencia.SubirPeso -> "Sube a ${formatearPeso(sugerencia.pesoKg)} kg"
-    is Sugerencia.MantenerPeso -> "Mantén ${formatearPeso(sugerencia.pesoKg)} kg"
+private fun textoSugerencia(sugerencia: Sugerencia, unidad: UnidadPeso): String = when (sugerencia) {
+    is Sugerencia.SubirPeso -> "Sube a ${formatearPeso(sugerencia.peso)} ${unidad.simbolo}"
+    is Sugerencia.MantenerPeso -> "Mantén ${formatearPeso(sugerencia.peso)} ${unidad.simbolo}"
     Sugerencia.RangoCompletado -> "Rango completado"
 }
 

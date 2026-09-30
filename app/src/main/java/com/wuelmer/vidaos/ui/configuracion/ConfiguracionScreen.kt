@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wuelmer.vidaos.data.Tema
+import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.ui.navegacion.Modulo
 import com.wuelmer.vidaos.ui.navegacion.modulosVisibles
 import com.wuelmer.vidaos.ui.navegacion.puedeOcultar
@@ -52,6 +53,7 @@ fun ConfiguracionRoute(
         onBackClick = onBackClick,
         onTemaChange = viewModel::onTemaChange,
         onModuloVisibleChange = viewModel::onModuloVisibleChange,
+        onUnidadPesoChange = viewModel::onUnidadPesoChange,
         modifier = modifier
     )
 }
@@ -63,6 +65,7 @@ fun ConfiguracionScreen(
     onBackClick: () -> Unit,
     onTemaChange: (Tema) -> Unit,
     onModuloVisibleChange: (Modulo, Boolean) -> Unit,
+    onUnidadPesoChange: (UnidadPeso) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -99,8 +102,9 @@ fun ConfiguracionScreen(
             ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp).selectableGroup()) {
                     Tema.entries.forEach { tema ->
-                        OpcionTema(
-                            tema = tema,
+                        OpcionRadio(
+                            titulo = etiquetaTema(tema),
+                            descripcion = if (tema == Tema.SISTEMA) "Usa el modo claro u oscuro del teléfono" else null,
                             seleccionado = !uiState.cargando && tema == uiState.tema,
                             onClick = { onTemaChange(tema) }
                         )
@@ -137,12 +141,40 @@ fun ConfiguracionScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = TextoSuave
             )
+
+            Text(
+                text = "Gym",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(top = 10.dp)
+            )
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(vertical = 8.dp).selectableGroup()) {
+                    UnidadPeso.entries.forEach { unidad ->
+                        OpcionRadio(
+                            titulo = etiquetaUnidad(unidad),
+                            descripcion = null,
+                            seleccionado = !uiState.cargando && unidad == uiState.unidadPeso,
+                            onClick = { onUnidadPesoChange(unidad) }
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "Los pesos se guardan siempre en kg; cambiar la unidad no modifica tus registros.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextoSuave
+            )
         }
     }
 }
 
 @Composable
-private fun OpcionTema(tema: Tema, seleccionado: Boolean, onClick: () -> Unit) {
+private fun OpcionRadio(titulo: String, descripcion: String?, seleccionado: Boolean, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -152,10 +184,10 @@ private fun OpcionTema(tema: Tema, seleccionado: Boolean, onClick: () -> Unit) {
     ) {
         RadioButton(selected = seleccionado, onClick = null)
         Column(modifier = Modifier.padding(start = 12.dp)) {
-            Text(text = etiquetaTema(tema), style = MaterialTheme.typography.bodyLarge)
-            if (tema == Tema.SISTEMA) {
+            Text(text = titulo, style = MaterialTheme.typography.bodyLarge)
+            if (descripcion != null) {
                 Text(
-                    text = "Usa el modo claro u oscuro del teléfono",
+                    text = descripcion,
                     style = MaterialTheme.typography.bodySmall,
                     color = TextoSuave
                 )
@@ -186,6 +218,11 @@ private fun OpcionModulo(
         )
         Switch(checked = visible, onCheckedChange = null, enabled = habilitado)
     }
+}
+
+private fun etiquetaUnidad(unidad: UnidadPeso): String = when (unidad) {
+    UnidadPeso.KG -> "Kilogramos (kg)"
+    UnidadPeso.LB -> "Libras (lb)"
 }
 
 private fun etiquetaTema(tema: Tema): String = when (tema) {

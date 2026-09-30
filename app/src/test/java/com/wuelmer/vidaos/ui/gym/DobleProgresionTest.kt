@@ -3,6 +3,7 @@ package com.wuelmer.vidaos.ui.gym
 import com.wuelmer.vidaos.data.EjercicioGym
 import com.wuelmer.vidaos.data.SerieGym
 import com.wuelmer.vidaos.data.TipoEjercicio
+import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.data.ZonaEjercicio
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -87,5 +88,30 @@ class DobleProgresionTest {
     fun textoUltimaVez_pesosDistintos() {
         val series = listOf(serie(8, 60.0), serie(6, 57.5))
         assertEquals("8×60 / 6×57,5 kg", textoUltimaVez(sentadilla, series))
+    }
+
+    @Test
+    fun libras_inferior_sube5() {
+        // 135 lb guardadas en kg, como lo haría la app al registrar en libras.
+        val series = List(3) { serie(reps = 8, peso = UnidadPeso.LB.aKg(135.0)) }
+        assertEquals(Sugerencia.SubirPeso(140.0), sugerir(sentadilla, 3, 8, series, UnidadPeso.LB))
+    }
+
+    @Test
+    fun libras_superior_sube2coma5() {
+        val series = List(4) { serie(reps = 8, peso = UnidadPeso.LB.aKg(95.0)) }
+        assertEquals(Sugerencia.SubirPeso(97.5), sugerir(pressBanca, 4, 8, series, UnidadPeso.LB))
+    }
+
+    @Test
+    fun conversion_idaYVuelta_conservaElValor() {
+        assertEquals(135.0, UnidadPeso.LB.desdeKg(UnidadPeso.LB.aKg(135.0)), 0.0)
+        assertEquals(22.5, UnidadPeso.LB.desdeKg(UnidadPeso.LB.aKg(22.5)), 0.0)
+    }
+
+    @Test
+    fun textoUltimaVez_enLibras() {
+        val series = List(2) { serie(8, UnidadPeso.LB.aKg(135.0)) }
+        assertEquals("8 / 8 reps · 135 lb", textoUltimaVez(sentadilla, series, UnidadPeso.LB))
     }
 }
