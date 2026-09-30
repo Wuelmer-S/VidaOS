@@ -1,6 +1,7 @@
 package com.wuelmer.vidaos.ui.gym
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -115,5 +116,41 @@ class ProgresoGymTest {
     @Test
     fun mensaje_empiezaTuRacha() {
         assertEquals("Empieza tu racha: 3 sesiones esta semana", mensaje(hoy, racha = false))
+    }
+
+    // --- Calendario de constancia ---
+
+    @Test
+    fun calendario_16Semanas_terminaEnLaActual_lunesArriba() {
+        val cal = calendarioConstancia(emptyList(), hoy)
+        assertEquals(16, cal.size)
+        assertEquals(lunes, cal.last().dias.first().fecha)
+        assertEquals(lunes.minusWeeks(15), cal.first().dias.first().fecha)
+        assertTrue(cal.all { s -> s.dias.size == 7 && s.dias.first().fecha.dayOfWeek == DayOfWeek.MONDAY })
+    }
+
+    @Test
+    fun calendario_marcaSesionesHoyYFuturo() {
+        val cal = calendarioConstancia(listOf(7L to lunes, 8L to lunes.minusWeeks(2).plusDays(3)), hoy)
+        val actual = cal.last().dias
+        assertEquals(7L, actual[0].sesionId)
+        assertTrue(actual[2].esHoy)
+        assertTrue(actual[3].esFuturo && !actual[2].esFuturo)
+        assertEquals(8L, cal[13].dias[3].sesionId)
+        assertEquals(2, cal.sumOf { s -> s.dias.count { it.sesionId != null } })
+    }
+
+    @Test
+    fun calendario_variasSesionesElMismoDia_abreLaUltima() {
+        val cal = calendarioConstancia(listOf(3L to lunes, 9L to lunes, 5L to lunes), hoy)
+        assertEquals(9L, cal.last().dias[0].sesionId)
+    }
+
+    @Test
+    fun calendario_rotulaElMesSoloAlCambiar() {
+        val cal = calendarioConstancia(emptyList(), hoy)
+        assertEquals("jun", cal.first().etiquetaMes) // lunes 15 de junio
+        val etiquetas = cal.mapNotNull { it.etiquetaMes }
+        assertEquals(listOf("jun", "jul", "ago", "sep"), etiquetas)
     }
 }

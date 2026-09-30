@@ -203,7 +203,9 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                     startDestination = Pestana.GYM_PROGRESO.ruta,
                     route = Modulo.GYM.ruta
                 ) {
-                    composable(Pestana.GYM_PROGRESO.ruta) { ProgresoGymRoute() }
+                    composable(Pestana.GYM_PROGRESO.ruta) {
+                        ProgresoGymRoute(onSesionClick = { id -> navController.navigate("gym_detalle/$id") })
+                    }
                     composable(Pestana.GYM_SESIONES.ruta) {
                         GymRoute(
                             onIniciarSesion = { diaId -> navController.navigate("gym_sesion/$diaId") },

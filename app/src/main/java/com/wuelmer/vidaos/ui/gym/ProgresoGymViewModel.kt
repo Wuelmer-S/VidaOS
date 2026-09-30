@@ -14,14 +14,23 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 
+data class ProgresoGymUiState(
+    val semana: ProgresoSemana,
+    val calendario: List<SemanaCalendario>
+)
+
 class ProgresoGymViewModel(gymDao: GymDao, preferencias: PreferenciasRepository) : ViewModel() {
 
     // null mientras carga, para no mostrar una racha 0 falsa un instante.
-    val progreso: StateFlow<ProgresoSemana?> = combine(
-        gymDao.fechas(),
+    val uiState: StateFlow<ProgresoGymUiState?> = combine(
+        gymDao.getSesiones(),
         preferencias.preferencias
-    ) { fechas, prefs ->
-        progresoSemana(fechas, LocalDate.now(), prefs.metaSemanal)
+    ) { sesiones, prefs ->
+        val hoy = LocalDate.now()
+        ProgresoGymUiState(
+            semana = progresoSemana(sesiones.map { it.fecha }, hoy, prefs.metaSemanal),
+            calendario = calendarioConstancia(sesiones.map { it.id to it.fecha }, hoy)
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
