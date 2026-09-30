@@ -3,18 +3,41 @@ package com.wuelmer.vidaos.ui.gym
 import com.wuelmer.vidaos.data.EjercicioGym
 import com.wuelmer.vidaos.data.SerieGym
 import com.wuelmer.vidaos.data.TipoEjercicio
+import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.data.ZonaEjercicio
 
+// Los pesos de una sugerencia ya vienen en la unidad elegida por el usuario.
 sealed interface Sugerencia {
-    data class SubirPeso(val pesoKg: Double) : Sugerencia
-    data class MantenerPeso(val pesoKg: Double) : Sugerencia
+    data class SubirPeso(val peso: Double) : Sugerencia
+    data class MantenerPeso(val peso: Double) : Sugerencia
     object RangoCompletado : Sugerencia
 }
 
-// Incremento mínimo del rango acordado; ajustable cuando exista Configuración.
-fun incrementoKg(zona: ZonaEjercicio): Double = when (zona) {
-    ZonaEjercicio.INFERIOR -> 2.5
-    ZonaEjercicio.SUPERIOR, ZonaEjercicio.CORE -> 1.0
+private const val KG_POR_LB = 0.45359237
+
+private fun redondear(valor: Double): Double = Math.round(valor * 100) / 100.0
+
+// En la base todo está en kg; se redondea a 2 decimales para que 135 lb se vuelva a mostrar como 135.
+fun UnidadPeso.desdeKg(kg: Double): Double = when (this) {
+    UnidadPeso.KG -> kg
+    UnidadPeso.LB -> redondear(kg / KG_POR_LB)
+}
+
+fun UnidadPeso.aKg(valor: Double): Double = when (this) {
+    UnidadPeso.KG -> valor
+    UnidadPeso.LB -> valor * KG_POR_LB
+}
+
+val UnidadPeso.simbolo: String
+    get() = when (this) {
+        UnidadPeso.KG -> "kg"
+        UnidadPeso.LB -> "lb"
+    }
+
+// Incremento mínimo del rango acordado para cada unidad.
+fun incremento(zona: ZonaEjercicio, unidad: UnidadPeso): Double = when (unidad) {
+    UnidadPeso.KG -> if (zona == ZonaEjercicio.INFERIOR) 2.5 else 1.0
+    UnidadPeso.LB -> if (zona == ZonaEjercicio.INFERIOR) 5.0 else 2.5
 }
 
 /**
@@ -25,21 +48,22 @@ fun sugerir(
     ejercicio: EjercicioGym,
     seriesObjetivo: Int,
     objetivoMax: Int,
-    ultimaVez: List<SerieGym>
+    ultimaVez: List<SerieGym>,
+    unidad: UnidadPeso = UnidadPeso.KG
 ): Sugerencia? {
     if (ultimaVez.isEmpty()) return null
     val completas = ultimaVez.size >= seriesObjetivo
 
     return when (ejercicio.tipo) {
         TipoEjercicio.CON_PESO -> {
-            val pesos = ultimaVez.mapNotNull { it.pesoKg }
+            val pesos = ultimaVez.mapNotNull { it.pesoKg?.let(unidad::desdeKg) }
             if (pesos.isEmpty()) return null
             val pesoMaximo = pesos.max()
             val mismoPeso = pesos.size == ultimaVez.size && pesos.distinct().size == 1
             val enTope = ultimaVez.all { (it.repeticiones ?: 0) >= objetivoMax }
             if (completas && mismoPeso && enTope) {
-                // Redondeo a 2 decimales para evitar restos de coma flotante (p. ej. 10,2 + 1).
-                Sugerencia.SubirPeso(Math.round((pesoMaximo + incrementoKg(ejercicio.zona)) * 100) / 100.0)
+                // Redondeo para evitar restos de coma flotante (p. ej. 10,2 + 1).
+                Sugerencia.SubirPeso(redondear(pesoMaximo + incremento(ejercicio.zona, unidad)))
             } else {
                 Sugerencia.MantenerPeso(pesoMaximo)
             }
@@ -51,20 +75,26 @@ fun sugerir(
     }
 }
 
-fun formatearPeso(pesoKg: Double?): String {
-    if (pesoKg == null) return "-"
-    return if (pesoKg % 1.0 == 0.0) pesoKg.toInt().toString() else pesoKg.toString().replace('.', ',')
+fun formatearPeso(peso: Double?): String {
+    if (peso == null) return "-"
+    return if (peso % 1.0 == 0.0) peso.toInt().toString() else peso.toString().replace('.', ',')
 }
 
-fun textoUltimaVez(ejercicio: EjercicioGym, series: List<SerieGym>): String {
+// Peso guardado en kg, mostrado en la unidad elegida.
+fun formatearPesoKg(pesoKg: Double?, unidad: UnidadPeso): String =
+    formatearPeso(pesoKg?.let(unidad::desdeKg))
+
+fun textoUltimaVez(ejercicio: EjercicioGym, series: List<SerieGym>, unidad: UnidadPeso = UnidadPeso.KG): String {
     val lado = if (ejercicio.unilateral) "/lado" else ""
     return when (ejercicio.tipo) {
         TipoEjercicio.CON_PESO -> {
             val pesos = series.map { it.pesoKg }.distinct()
             if (pesos.size == 1) {
-                series.joinToString(" / ") { "${it.repeticiones}" } + " reps$lado · ${formatearPeso(pesos.first())} kg"
+                series.joinToString(" / ") { "${it.repeticiones}" } +
+                    " reps$lado · ${formatearPesoKg(pesos.first(), unidad)} ${unidad.simbolo}"
             } else {
-                series.joinToString(" / ") { "${it.repeticiones}×${formatearPeso(it.pesoKg)}" } + " kg"
+                series.joinToString(" / ") { "${it.repeticiones}×${formatearPesoKg(it.pesoKg, unidad)}" } +
+                    " ${unidad.simbolo}"
             }
         }
         TipoEjercicio.PESO_CORPORAL -> series.joinToString(" / ") { "${it.repeticiones}" } + " reps$lado"

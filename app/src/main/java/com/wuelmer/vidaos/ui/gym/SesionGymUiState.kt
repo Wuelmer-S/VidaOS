@@ -3,6 +3,7 @@ package com.wuelmer.vidaos.ui.gym
 import com.wuelmer.vidaos.data.EjercicioGym
 import com.wuelmer.vidaos.data.SerieGym
 import com.wuelmer.vidaos.data.TipoEjercicio
+import com.wuelmer.vidaos.data.UnidadPeso
 import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicLong
 
@@ -24,17 +25,19 @@ data class EjercicioSesionUi(
     val objetivoMax: Int,
     val descansoSegundos: Int,
     val inputs: List<SerieInput>,
-    val historial: Map<Long, List<SerieGym>> = emptyMap()
+    val historial: Map<Long, List<SerieGym>> = emptyMap(),
+    val unidad: UnidadPeso = UnidadPeso.KG
 ) {
     val elegido: EjercicioGym get() = opciones.first { it.id == elegidoId }
     val ultimaVez: List<SerieGym> get() = historial[elegidoId].orEmpty()
-    val sugerencia: Sugerencia? get() = sugerir(elegido, series, objetivoMax, ultimaVez)
+    val sugerencia: Sugerencia? get() = sugerir(elegido, series, objetivoMax, ultimaVez, unidad)
 }
 
 data class SesionGymUiState(
     val cargando: Boolean = true,
     val nombreDia: String = "",
     val fecha: LocalDate = LocalDate.now(),
+    val unidad: UnidadPeso = UnidadPeso.KG,
     val ejercicios: List<EjercicioSesionUi> = emptyList(),
     val mostrarErrores: Boolean = false,
     val errorSinSeries: Boolean = false,
@@ -47,7 +50,8 @@ sealed interface ResultadoSerie {
     data class Valida(
         val repeticiones: Int?,
         val segundos: Int?,
-        val pesoKg: Double?
+        // En la unidad elegida; se convierte a kg al guardar.
+        val peso: Double?
     ) : ResultadoSerie
 }
 

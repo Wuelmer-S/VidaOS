@@ -3,18 +3,21 @@ package com.wuelmer.vidaos.ui.gym
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
+import com.wuelmer.vidaos.data.PreferenciasRepository
 import com.wuelmer.vidaos.data.SerieGym
 import com.wuelmer.vidaos.data.SesionGym
 import com.wuelmer.vidaos.data.VidaOSDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class SesionGymViewModel(
     private val diaRutinaId: Long,
-    private val database: VidaOSDatabase
+    private val database: VidaOSDatabase,
+    private val preferencias: PreferenciasRepository
 ) : ViewModel() {
 
     private val gymDao = database.gymDao()
@@ -25,6 +28,7 @@ class SesionGymViewModel(
     init {
         viewModelScope.launch {
             val dia = gymDao.getDia(diaRutinaId)
+            val unidad = preferencias.preferencias.first().unidadPeso
             val ejercicios = gymDao.getEjerciciosDelDia(diaRutinaId).map { e ->
                 val opciones = listOfNotNull(e.ejercicio, e.alternativa)
                 EjercicioSesionUi(
@@ -36,11 +40,12 @@ class SesionGymViewModel(
                     objetivoMax = e.objetivo.objetivoMax,
                     descansoSegundos = e.objetivo.descansoSegundos,
                     inputs = List(e.objetivo.series) { SerieInput() },
-                    historial = opciones.associate { it.id to gymDao.getSeriesUltimaVez(it.id) }
+                    historial = opciones.associate { it.id to gymDao.getSeriesUltimaVez(it.id) },
+                    unidad = unidad
                 )
             }
             _uiState.update {
-                it.copy(cargando = false, nombreDia = dia?.nombre.orEmpty(), ejercicios = ejercicios)
+                it.copy(cargando = false, nombreDia = dia?.nombre.orEmpty(), unidad = unidad, ejercicios = ejercicios)
             }
         }
     }
@@ -86,7 +91,7 @@ class SesionGymViewModel(
                         orden = orden++,
                         repeticiones = resultado.repeticiones,
                         segundos = resultado.segundos,
-                        pesoKg = resultado.pesoKg
+                        pesoKg = resultado.peso?.let(estado.unidad::aKg)
                     )
                 }
             }

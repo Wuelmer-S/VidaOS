@@ -24,6 +24,8 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -51,6 +53,7 @@ import com.wuelmer.vidaos.ui.historial.HistorialRoute
 import com.wuelmer.vidaos.ui.movimientos.MovimientosRoute
 import com.wuelmer.vidaos.ui.navegacion.Modulo
 import com.wuelmer.vidaos.ui.navegacion.SelectorModulos
+import com.wuelmer.vidaos.ui.navegacion.modulosVisibles
 import com.wuelmer.vidaos.ui.registrargasto.RegistrarGastoRoute
 import com.wuelmer.vidaos.ui.theme.VidaOSTheme
 
@@ -76,10 +79,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val preferencias = (application as VidaOSApplication).preferencias
         setContent {
-            // Hasta leer la preferencia no se dibuja nada, para no parpadear con el tema equivocado.
-            val tema by preferencias.tema.collectAsState(initial = null)
-            val temaActual = tema ?: return@setContent
-            val oscuro = when (temaActual) {
+            // Hasta leer las preferencias no se dibuja nada, para no parpadear con el tema o los módulos equivocados.
+            val prefs by preferencias.preferencias.collectAsState(initial = null)
+            val prefsActuales = prefs ?: return@setContent
+            val oscuro = when (prefsActuales.tema) {
                 Tema.SISTEMA -> isSystemInDarkTheme()
                 Tema.CLARO -> false
                 Tema.OSCURO -> true
@@ -95,14 +98,18 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
             VidaOSTheme(darkTheme = oscuro) {
-                VidaOSApp()
+                val modulos = modulosVisibles(prefsActuales.modulosOcultos)
+                // El módulo de inicio es el primero visible; si cambia, se rearma la navegación desde él.
+                key(modulos.first()) {
+                    VidaOSApp(modulos = modulos)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun VidaOSApp() {
+private fun VidaOSApp(modulos: List<Modulo>) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destinoActual = backStackEntry?.destination
@@ -114,14 +121,22 @@ private fun VidaOSApp() {
     val pestanaActual = PestanaFinanzas.entries.firstOrNull { it.ruta == rutaActual }
     val esPantallaPrincipal = pestanaActual != null || rutaActual == RUTA_GYM_INICIO
 
+    // Si se ocultó el módulo en el que estaba (p. ej. al volver de Configuración), ir al primero visible.
+    LaunchedEffect(moduloActual, modulos) {
+        if (moduloActual != null && moduloActual !in modulos) navController.irAModulo(modulos.first())
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            SelectorModulos(
-                modulos = Modulo.entries,
-                moduloActual = moduloActual,
-                onModuloClick = { modulo -> navController.irAModulo(modulo) }
-            )
+            // Con un solo módulo visible la barra no aporta nada.
+            if (modulos.size > 1) {
+                SelectorModulos(
+                    modulos = modulos,
+                    moduloActual = moduloActual,
+                    onModuloClick = { modulo -> navController.irAModulo(modulo) }
+                )
+            }
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
@@ -137,7 +152,7 @@ private fun VidaOSApp() {
             }
             NavHost(
                 navController = navController,
-                startDestination = Modulo.FINANZAS.ruta,
+                startDestination = modulos.first().ruta,
                 modifier = Modifier.weight(1f)
             ) {
                 navigation(
