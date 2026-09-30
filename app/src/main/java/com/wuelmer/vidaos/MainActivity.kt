@@ -129,8 +129,8 @@ private fun VidaOSApp(modulos: List<Modulo>) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            // Con un solo módulo visible la barra no aporta nada.
-            if (modulos.size > 1) {
+            // Con un solo módulo visible la barra no aporta nada; en Configuración (fuera de los módulos) confunde.
+            if (modulos.size > 1 && rutaActual != RUTA_CONFIGURACION) {
                 SelectorModulos(
                     modulos = modulos,
                     moduloActual = moduloActual,
