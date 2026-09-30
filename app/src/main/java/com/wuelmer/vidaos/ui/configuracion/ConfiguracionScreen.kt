@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -33,6 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wuelmer.vidaos.data.Tema
+import com.wuelmer.vidaos.ui.navegacion.Modulo
+import com.wuelmer.vidaos.ui.navegacion.modulosVisibles
+import com.wuelmer.vidaos.ui.navegacion.puedeOcultar
 import com.wuelmer.vidaos.ui.theme.TextoSuave
 
 @Composable
@@ -46,6 +51,7 @@ fun ConfiguracionRoute(
         uiState = uiState,
         onBackClick = onBackClick,
         onTemaChange = viewModel::onTemaChange,
+        onModuloVisibleChange = viewModel::onModuloVisibleChange,
         modifier = modifier
     )
 }
@@ -56,6 +62,7 @@ fun ConfiguracionScreen(
     uiState: ConfiguracionUiState,
     onBackClick: () -> Unit,
     onTemaChange: (Tema) -> Unit,
+    onModuloVisibleChange: (Modulo, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -100,6 +107,36 @@ fun ConfiguracionScreen(
                     }
                 }
             }
+
+            Text(
+                text = "Módulos",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(top = 10.dp)
+            )
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    val visibles = modulosVisibles(uiState.modulosOcultos)
+                    Modulo.entries.forEach { modulo ->
+                        val visible = modulo in visibles
+                        OpcionModulo(
+                            modulo = modulo,
+                            visible = visible,
+                            habilitado = !uiState.cargando && (!visible || puedeOcultar(modulo, uiState.modulosOcultos)),
+                            onChange = { onModuloVisibleChange(modulo, it) }
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "Ocultar un módulo no borra sus datos. Siempre queda al menos uno visible.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextoSuave
+            )
         }
     }
 }
@@ -124,6 +161,30 @@ private fun OpcionTema(tema: Tema, seleccionado: Boolean, onClick: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun OpcionModulo(
+    modulo: Modulo,
+    visible: Boolean,
+    habilitado: Boolean,
+    onChange: (Boolean) -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = visible, enabled = habilitado, role = Role.Switch, onValueChange = onChange)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+    ) {
+        Icon(modulo.icono, contentDescription = null, tint = TextoSuave)
+        Text(
+            text = modulo.etiqueta,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f).padding(start = 12.dp)
+        )
+        Switch(checked = visible, onCheckedChange = null, enabled = habilitado)
     }
 }
 

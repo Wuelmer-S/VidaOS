@@ -8,6 +8,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
 import com.wuelmer.vidaos.data.PreferenciasRepository
 import com.wuelmer.vidaos.data.Tema
+import com.wuelmer.vidaos.ui.navegacion.Modulo
+import com.wuelmer.vidaos.ui.navegacion.puedeOcultar
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -16,13 +18,14 @@ import kotlinx.coroutines.launch
 
 data class ConfiguracionUiState(
     val cargando: Boolean = true,
-    val tema: Tema = Tema.SISTEMA
+    val tema: Tema = Tema.SISTEMA,
+    val modulosOcultos: Set<String> = emptySet()
 )
 
 class ConfiguracionViewModel(private val preferencias: PreferenciasRepository) : ViewModel() {
 
-    val uiState: StateFlow<ConfiguracionUiState> = preferencias.tema
-        .map { ConfiguracionUiState(cargando = false, tema = it) }
+    val uiState: StateFlow<ConfiguracionUiState> = preferencias.preferencias
+        .map { ConfiguracionUiState(cargando = false, tema = it.tema, modulosOcultos = it.modulosOcultos) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -31,6 +34,11 @@ class ConfiguracionViewModel(private val preferencias: PreferenciasRepository) :
 
     fun onTemaChange(tema: Tema) {
         viewModelScope.launch { preferencias.setTema(tema) }
+    }
+
+    fun onModuloVisibleChange(modulo: Modulo, visible: Boolean) {
+        if (!visible && !puedeOcultar(modulo, uiState.value.modulosOcultos)) return
+        viewModelScope.launch { preferencias.setModuloOculto(modulo.name, oculto = !visible) }
     }
 
     companion object {
