@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
+import com.wuelmer.vidaos.data.META_SEMANAL_DEFECTO
 import com.wuelmer.vidaos.data.PreferenciasRepository
 import com.wuelmer.vidaos.data.RespaldoRepository
 import com.wuelmer.vidaos.data.ResultadoRespaldo
@@ -26,7 +27,8 @@ data class ConfiguracionUiState(
     val cargando: Boolean = true,
     val tema: Tema = Tema.SISTEMA,
     val modulosOcultos: Set<String> = emptySet(),
-    val unidadPeso: UnidadPeso = UnidadPeso.KG
+    val unidadPeso: UnidadPeso = UnidadPeso.KG,
+    val metaSemanal: Int = META_SEMANAL_DEFECTO
 )
 
 class ConfiguracionViewModel(
@@ -47,7 +49,8 @@ class ConfiguracionViewModel(
                 cargando = false,
                 tema = it.tema,
                 modulosOcultos = it.modulosOcultos,
-                unidadPeso = it.unidadPeso
+                unidadPeso = it.unidadPeso,
+                metaSemanal = it.metaSemanal
             )
         }
         .stateIn(
@@ -58,6 +61,10 @@ class ConfiguracionViewModel(
 
     fun onTemaChange(tema: Tema) {
         viewModelScope.launch { preferencias.setTema(tema) }
+    }
+
+    fun onMetaSemanalChange(meta: Int) {
+        viewModelScope.launch { preferencias.setMetaSemanal(meta) }
     }
 
     fun onUnidadPesoChange(unidad: UnidadPeso) {
