@@ -19,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,6 +52,7 @@ import java.util.Locale
 fun DetalleSesionGymRoute(
     sesionId: Long,
     onBackClick: () -> Unit,
+    onEditarClick: (diaRutinaId: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as VidaOSApplication
@@ -72,6 +74,7 @@ fun DetalleSesionGymRoute(
         uiState = uiState,
         onBackClick = onBackClick,
         onEliminarConfirmado = { viewModel.eliminar(onEliminada = onBackClick) },
+        onEditarClick = onEditarClick,
         modifier = modifier
     )
 }
@@ -82,6 +85,7 @@ fun DetalleSesionGymScreen(
     uiState: DetalleSesionUiState,
     onBackClick: () -> Unit,
     onEliminarConfirmado: () -> Unit,
+    onEditarClick: (diaRutinaId: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var mostrarConfirmacion by remember { mutableStateOf(false) }
@@ -156,6 +160,13 @@ fun DetalleSesionGymScreen(
                 }
             }
 
+            OutlinedButton(
+                onClick = { onEditarClick(sesion.diaRutinaId) },
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Editar sesión")
+            }
             Button(
                 onClick = { mostrarConfirmacion = true },
                 colors = ButtonDefaults.buttonColors(containerColor = ColorGasto),

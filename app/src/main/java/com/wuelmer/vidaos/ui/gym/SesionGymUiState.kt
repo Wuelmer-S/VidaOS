@@ -43,7 +43,9 @@ data class SesionGymUiState(
     val errorSinSeries: Boolean = false,
     val guardando: Boolean = false,
     // Se retomó una sesión que había quedado a medio llenar.
-    val recuperada: Boolean = false
+    val recuperada: Boolean = false,
+    // Editando una sesión ya guardada (sin borrador ni sugerencias).
+    val editando: Boolean = false
 )
 
 sealed interface ResultadoSerie {

@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Relation
 import androidx.room.Transaction
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 data class EjercicioDelDia(
@@ -36,6 +37,15 @@ interface GymDao {
 
     @Query("SELECT * FROM sesiones_gym WHERE id = :sesionId")
     fun getSesion(sesionId: Long): Flow<SesionGym?>
+
+    @Query("SELECT * FROM sesiones_gym WHERE id = :sesionId")
+    suspend fun getSesionPorId(sesionId: Long): SesionGym?
+
+    @Update
+    suspend fun updateSesion(sesion: SesionGym)
+
+    @Query("DELETE FROM series_gym WHERE sesionId = :sesionId")
+    suspend fun deleteSeriesDeSesion(sesionId: Long)
 
     @Query(
         "SELECT d.* FROM dias_rutina d " +

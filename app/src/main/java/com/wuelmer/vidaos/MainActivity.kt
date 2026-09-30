@@ -68,8 +68,10 @@ private const val ARG_MOVIMIENTO_ID = "movimientoId"
 private const val RUTA_DETALLE = "detalle/{$ARG_MOVIMIENTO_ID}"
 private const val RUTA_GYM_INICIO = "gym_inicio"
 private const val ARG_DIA_ID = "diaId"
-private const val RUTA_GYM_SESION = "gym_sesion/{$ARG_DIA_ID}"
 private const val ARG_SESION_ID = "sesionId"
+// sesionId opcional: sin él se registra una sesión nueva; con él se edita la guardada.
+private const val RUTA_GYM_SESION = "gym_sesion/{$ARG_DIA_ID}?$ARG_SESION_ID={$ARG_SESION_ID}"
+private const val SIN_SESION = -1L
 private const val RUTA_GYM_DETALLE = "gym_detalle/{$ARG_SESION_ID}"
 private const val RUTA_CONFIGURACION = "configuracion"
 
@@ -207,16 +209,25 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                         val sesionId = entry.arguments?.getLong(ARG_SESION_ID) ?: 0L
                         DetalleSesionGymRoute(
                             sesionId = sesionId,
-                            onBackClick = { navController.popBackStack() }
+                            onBackClick = { navController.popBackStack() },
+                            onEditarClick = { diaId -> navController.navigate("gym_sesion/$diaId?$ARG_SESION_ID=$sesionId") }
                         )
                     }
                     composable(
                         route = RUTA_GYM_SESION,
-                        arguments = listOf(navArgument(ARG_DIA_ID) { type = NavType.LongType })
+                        arguments = listOf(
+                            navArgument(ARG_DIA_ID) { type = NavType.LongType },
+                            navArgument(ARG_SESION_ID) {
+                                type = NavType.LongType
+                                defaultValue = SIN_SESION
+                            }
+                        )
                     ) { entry ->
                         val diaId = entry.arguments?.getLong(ARG_DIA_ID) ?: 0L
+                        val sesionId = entry.arguments?.getLong(ARG_SESION_ID)?.takeIf { it != SIN_SESION }
                         SesionGymRoute(
                             diaId = diaId,
+                            sesionId = sesionId,
                             onBackClick = { navController.popBackStack() },
                             onGuardado = { navController.popBackStack() }
                         )
