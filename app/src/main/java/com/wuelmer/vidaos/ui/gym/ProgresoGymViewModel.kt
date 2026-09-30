@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
+import com.wuelmer.vidaos.data.EjercicioGym
 import com.wuelmer.vidaos.data.GymDao
 import com.wuelmer.vidaos.data.PreferenciasRepository
 import com.wuelmer.vidaos.data.UnidadPeso
@@ -19,7 +20,8 @@ data class ProgresoGymUiState(
     val semana: ProgresoSemana,
     val calendario: List<SemanaCalendario>,
     val resumen: ResumenGym,
-    val unidad: UnidadPeso
+    val unidad: UnidadPeso,
+    val ejercicios: List<EjercicioGym>
 )
 
 class ProgresoGymViewModel(gymDao: GymDao, preferencias: PreferenciasRepository) : ViewModel() {
@@ -28,15 +30,17 @@ class ProgresoGymViewModel(gymDao: GymDao, preferencias: PreferenciasRepository)
     val uiState: StateFlow<ProgresoGymUiState?> = combine(
         gymDao.getSesiones(),
         gymDao.getVolumenTotalKg(),
+        gymDao.getEjerciciosConRegistros(),
         preferencias.preferencias
-    ) { sesiones, volumenKg, prefs ->
+    ) { sesiones, volumenKg, ejercicios, prefs ->
         val hoy = LocalDate.now()
         val fechas = sesiones.map { it.fecha }
         ProgresoGymUiState(
             semana = progresoSemana(fechas, hoy, prefs.metaSemanal),
             calendario = calendarioConstancia(sesiones.map { it.id to it.fecha }, hoy),
             resumen = resumenGym(fechas, volumenKg, hoy, prefs.metaSemanal),
-            unidad = prefs.unidadPeso
+            unidad = prefs.unidadPeso,
+            ejercicios = ejercicios
         )
     }.stateIn(
         scope = viewModelScope,

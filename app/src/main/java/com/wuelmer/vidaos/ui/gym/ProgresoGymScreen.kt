@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wuelmer.vidaos.data.EjercicioGym
 import com.wuelmer.vidaos.data.UnidadPeso
 import com.wuelmer.vidaos.ui.theme.ColorDestacado
 import com.wuelmer.vidaos.ui.theme.Indigo400
@@ -53,11 +55,12 @@ import java.time.DayOfWeek
 @Composable
 fun ProgresoGymRoute(
     onSesionClick: (sesionId: Long) -> Unit,
+    onEjercicioClick: (ejercicioId: Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProgresoGymViewModel = viewModel(factory = ProgresoGymViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    ProgresoGymScreen(uiState = uiState, onSesionClick = onSesionClick, modifier = modifier)
+    ProgresoGymScreen(uiState = uiState, onSesionClick = onSesionClick, onEjercicioClick = onEjercicioClick, modifier = modifier)
 }
 
 // Pestaña de inicio de Gym. Aquí irán también el calendario de constancia y los logros.
@@ -65,6 +68,7 @@ fun ProgresoGymRoute(
 fun ProgresoGymScreen(
     uiState: ProgresoGymUiState?,
     onSesionClick: (sesionId: Long) -> Unit,
+    onEjercicioClick: (ejercicioId: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -79,6 +83,7 @@ fun ProgresoGymScreen(
             TarjetaRacha(uiState.semana)
             TarjetaCalendario(uiState.calendario, onSesionClick)
             TarjetaResumen(uiState.resumen, uiState.unidad)
+            if (uiState.ejercicios.isNotEmpty()) TarjetaEjercicios(uiState.ejercicios, onEjercicioClick)
         }
     }
 }
@@ -226,6 +231,34 @@ private fun TarjetaResumen(resumen: ResumenGym, unidad: UnidadPeso) {
                             .clip(RoundedCornerShape(50))
                             .background(MaterialTheme.colorScheme.primary)
                     )
+                }
+            }
+        }
+    }
+}
+
+// Acceso a la evolución de fuerza de cada ejercicio ya registrado.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TarjetaEjercicios(ejercicios: List<EjercicioGym>, onEjercicioClick: (Long) -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = "EVOLUCIÓN POR EJERCICIO",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = TextoSuave
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ejercicios.forEach { ejercicio ->
+                    AssistChip(onClick = { onEjercicioClick(ejercicio.id) }, label = { Text(ejercicio.nombre) })
                 }
             }
         }
