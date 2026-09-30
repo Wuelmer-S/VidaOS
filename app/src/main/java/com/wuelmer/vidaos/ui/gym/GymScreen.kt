@@ -80,10 +80,12 @@ fun GymScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium
                     )
+                    val enCurso = dia.id in uiState.diasConBorrador
                     Text(
-                        text = "Toca para iniciar la sesión",
+                        text = if (enCurso) "Sesión en curso · toca para continuar" else "Toca para iniciar la sesión",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextoSuave
+                        color = if (enCurso) MaterialTheme.colorScheme.primary else TextoSuave,
+                        fontWeight = if (enCurso) FontWeight.Medium else null
                     )
                 }
             }

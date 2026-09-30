@@ -74,4 +74,16 @@ interface GymDao {
 
     @Query("DELETE FROM sesiones_gym WHERE id = :sesionId")
     suspend fun deleteSesion(sesionId: Long)
+
+    @Query("SELECT * FROM borrador_series WHERE diaRutinaId = :diaRutinaId ORDER BY rutinaEjercicioId, orden")
+    suspend fun getBorrador(diaRutinaId: Long): List<BorradorSerie>
+
+    @Query("SELECT DISTINCT diaRutinaId FROM borrador_series")
+    fun getDiasConBorrador(): Flow<List<Long>>
+
+    @Insert
+    suspend fun insertBorrador(series: List<BorradorSerie>)
+
+    @Query("DELETE FROM borrador_series WHERE diaRutinaId = :diaRutinaId")
+    suspend fun deleteBorrador(diaRutinaId: Long)
 }

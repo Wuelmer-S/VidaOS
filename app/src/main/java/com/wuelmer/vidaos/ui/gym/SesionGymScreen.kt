@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,7 +40,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -74,7 +77,8 @@ fun SesionGymRoute(
                 SesionGymViewModel(
                     diaRutinaId = diaId,
                     database = application.database,
-                    preferencias = application.preferencias
+                    preferencias = application.preferencias,
+                    appScope = application.applicationScope
                 )
             }
         }
@@ -92,6 +96,7 @@ fun SesionGymRoute(
         onAgregarSerie = viewModel::onAgregarSerie,
         onEliminarSerie = viewModel::onEliminarSerie,
         onGuardarClick = { viewModel.guardar(onGuardado) },
+        onDescartarClick = viewModel::descartarBorrador,
         modifier = modifier
     )
 }
@@ -108,8 +113,10 @@ fun SesionGymScreen(
     onAgregarSerie: (rutinaEjercicioId: Long) -> Unit,
     onEliminarSerie: (rutinaEjercicioId: Long, indice: Int) -> Unit,
     onGuardarClick: () -> Unit,
+    onDescartarClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var confirmarDescarte by remember { mutableStateOf(false) }
     val fechaFormateada = remember(uiState.fecha) {
         uiState.fecha
             .format(DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale.forLanguageTag("es-ES")))
@@ -148,6 +155,27 @@ fun SesionGymScreen(
         ) {
             Text(text = fechaFormateada, style = MaterialTheme.typography.bodyMedium, color = TextoSuave)
 
+            if (uiState.recuperada) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+                    ) {
+                        Text(
+                            text = "Retomaste la sesión en curso.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { confirmarDescarte = true }) { Text("Descartar") }
+                    }
+                }
+            }
+
             uiState.ejercicios.forEach { ejercicio ->
                 EjercicioCard(
                     ejercicio = ejercicio,
@@ -184,7 +212,30 @@ fun SesionGymScreen(
             ) {
                 Text("Guardar sesión")
             }
+            Text(
+                text = "Lo que escribes se guarda solo; si sales, al volver sigue aquí.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextoSuave,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
         }
+    }
+
+    if (confirmarDescarte) {
+        AlertDialog(
+            onDismissRequest = { confirmarDescarte = false },
+            title = { Text("¿Descartar la sesión en curso?") },
+            text = { Text("Se borrará lo que llevas escrito en este día. Las sesiones ya guardadas no se tocan.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmarDescarte = false
+                    onDescartarClick()
+                }) { Text("Descartar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmarDescarte = false }) { Text("Cancelar") }
+            }
+        )
     }
 }
 

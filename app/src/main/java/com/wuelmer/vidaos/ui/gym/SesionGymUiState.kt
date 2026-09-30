@@ -41,7 +41,9 @@ data class SesionGymUiState(
     val ejercicios: List<EjercicioSesionUi> = emptyList(),
     val mostrarErrores: Boolean = false,
     val errorSinSeries: Boolean = false,
-    val guardando: Boolean = false
+    val guardando: Boolean = false,
+    // Se retomó una sesión que había quedado a medio llenar.
+    val recuperada: Boolean = false
 )
 
 sealed interface ResultadoSerie {
