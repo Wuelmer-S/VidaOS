@@ -52,6 +52,7 @@ import com.wuelmer.vidaos.ui.gym.GymRoute
 import com.wuelmer.vidaos.ui.gym.ProgresoGymRoute
 import com.wuelmer.vidaos.ui.gym.SesionGymRoute
 import com.wuelmer.vidaos.ui.historial.HistorialRoute
+import com.wuelmer.vidaos.ui.moto.MotoRoute
 import com.wuelmer.vidaos.ui.movimientos.MovimientosRoute
 import com.wuelmer.vidaos.ui.navegacion.Modulo
 import com.wuelmer.vidaos.ui.navegacion.SelectorModulos
@@ -84,6 +85,8 @@ private const val RUTA_GYM_DETALLE = "gym_detalle/{$ARG_SESION_ID}"
 private const val ARG_EJERCICIO_ID = "ejercicioId"
 private const val RUTA_GYM_EJERCICIO = "gym_ejercicio/{$ARG_EJERCICIO_ID}"
 private const val RUTA_CONFIGURACION = "configuracion"
+// Moto tiene una sola pantalla principal (sin pestañas): el encabezado muestra solo el título.
+private const val RUTA_MOTO_INICIO = "moto_inicio"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -131,7 +134,7 @@ private fun VidaOSApp(modulos: List<Modulo>) {
         destinoActual?.hierarchy?.any { it.route == modulo.ruta } == true
     }
     val pestanaActual = Pestana.entries.firstOrNull { it.ruta == rutaActual }
-    val esPantallaPrincipal = pestanaActual != null
+    val esPantallaPrincipal = pestanaActual != null || rutaActual == RUTA_MOTO_INICIO
 
     // Si se ocultó el módulo en el que estaba (p. ej. al volver de Configuración), ir al primero visible.
     LaunchedEffect(moduloActual, modulos) {
@@ -259,6 +262,12 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                             onGuardado = { navController.popBackStack() }
                         )
                     }
+                }
+                navigation(
+                    startDestination = RUTA_MOTO_INICIO,
+                    route = Modulo.MOTO.ruta
+                ) {
+                    composable(RUTA_MOTO_INICIO) { MotoRoute() }
                 }
             }
         }
