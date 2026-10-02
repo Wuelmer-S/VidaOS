@@ -52,6 +52,8 @@ import com.wuelmer.vidaos.ui.gym.GymRoute
 import com.wuelmer.vidaos.ui.gym.ProgresoGymRoute
 import com.wuelmer.vidaos.ui.gym.SesionGymRoute
 import com.wuelmer.vidaos.ui.historial.HistorialRoute
+import com.wuelmer.vidaos.ui.moto.DetalleMantencionRoute
+import com.wuelmer.vidaos.ui.moto.LecturasKmRoute
 import com.wuelmer.vidaos.ui.moto.MotoRoute
 import com.wuelmer.vidaos.ui.movimientos.MovimientosRoute
 import com.wuelmer.vidaos.ui.navegacion.Modulo
@@ -87,6 +89,9 @@ private const val RUTA_GYM_EJERCICIO = "gym_ejercicio/{$ARG_EJERCICIO_ID}"
 private const val RUTA_CONFIGURACION = "configuracion"
 // Moto tiene una sola pantalla principal (sin pestañas): el encabezado muestra solo el título.
 private const val RUTA_MOTO_INICIO = "moto_inicio"
+private const val ARG_TIPO_ID = "tipoId"
+private const val RUTA_MOTO_MANTENCION = "moto_mantencion/{$ARG_TIPO_ID}"
+private const val RUTA_MOTO_KM = "moto_km"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -267,7 +272,24 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                     startDestination = RUTA_MOTO_INICIO,
                     route = Modulo.MOTO.ruta
                 ) {
-                    composable(RUTA_MOTO_INICIO) { MotoRoute() }
+                    composable(RUTA_MOTO_INICIO) {
+                        MotoRoute(
+                            onMantencionClick = { id -> navController.navigate("moto_mantencion/$id") },
+                            onVerLecturasClick = { navController.navigate(RUTA_MOTO_KM) }
+                        )
+                    }
+                    composable(
+                        route = RUTA_MOTO_MANTENCION,
+                        arguments = listOf(navArgument(ARG_TIPO_ID) { type = NavType.LongType })
+                    ) { entry ->
+                        DetalleMantencionRoute(
+                            tipoId = entry.arguments?.getLong(ARG_TIPO_ID) ?: 0L,
+                            onBackClick = { navController.popBackStack() }
+                        )
+                    }
+                    composable(RUTA_MOTO_KM) {
+                        LecturasKmRoute(onBackClick = { navController.popBackStack() })
+                    }
                 }
             }
         }

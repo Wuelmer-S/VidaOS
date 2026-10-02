@@ -1,6 +1,7 @@
 package com.wuelmer.vidaos.ui.moto
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,19 +15,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,16 +36,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wuelmer.vidaos.data.LecturaKm
+import com.wuelmer.vidaos.data.TipoMantencion
 import com.wuelmer.vidaos.ui.theme.ColorDestacado
 import com.wuelmer.vidaos.ui.theme.ColorGasto
 import com.wuelmer.vidaos.ui.theme.ColorIngreso
@@ -56,20 +55,41 @@ import java.time.temporal.ChronoUnit
 
 @Composable
 fun MotoRoute(
+    onMantencionClick: (tipoId: Long) -> Unit,
+    onVerLecturasClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MotoViewModel = viewModel(factory = MotoViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    MotoScreen(uiState = uiState, onAnotarKm = viewModel::anotarKm, modifier = modifier)
+    MotoScreen(
+        uiState = uiState,
+        onAnotarKm = viewModel::anotarKm,
+        onHechoHoy = viewModel::hechoHoy,
+        onCrearTipo = viewModel::crearTipo,
+        onMantencionClick = onMantencionClick,
+        onVerLecturasClick = onVerLecturasClick,
+        modifier = modifier
+    )
+}
+
+private sealed interface DialogoMoto {
+    data object Ninguno : DialogoMoto
+    data object Km : DialogoMoto
+    data class HechoHoy(val tipo: TipoMantencion) : DialogoMoto
+    data object NuevoTipo : DialogoMoto
 }
 
 @Composable
 fun MotoScreen(
     uiState: MotoUiState?,
-    onAnotarKm: (Int) -> Unit,
+    onAnotarKm: (LocalDate, Int) -> Unit,
+    onHechoHoy: (TipoMantencion) -> Unit,
+    onCrearTipo: (IntervaloValido, String) -> Unit,
+    onMantencionClick: (tipoId: Long) -> Unit,
+    onVerLecturasClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var mostrarDialogoKm by remember { mutableStateOf(false) }
+    var dialogo by remember { mutableStateOf<DialogoMoto>(DialogoMoto.Ninguno) }
 
     Column(
         modifier = modifier
@@ -80,25 +100,70 @@ fun MotoScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (uiState != null) {
-            TarjetaTablero(uiState, onActualizarKm = { mostrarDialogoKm = true })
-            TarjetaPlan(uiState.estados)
+            TarjetaTablero(
+                uiState,
+                onActualizarKm = { dialogo = DialogoMoto.Km },
+                onVerLecturasClick = onVerLecturasClick
+            )
+            TarjetaPlan(
+                estados = uiState.estados,
+                onMantencionClick = onMantencionClick,
+                onHechoHoyClick = { dialogo = DialogoMoto.HechoHoy(it) },
+                onNuevaClick = { dialogo = DialogoMoto.NuevoTipo }
+            )
         }
     }
 
-    if (mostrarDialogoKm && uiState != null) {
-        DialogoKm(
+    if (uiState == null) return
+    val cerrar = { dialogo = DialogoMoto.Ninguno }
+    when (val d = dialogo) {
+        DialogoMoto.Ninguno -> Unit
+        DialogoMoto.Km -> DialogoLecturaKm(
+            inicial = null,
             kmAnterior = uiState.ultimaLectura?.km,
-            onDismiss = { mostrarDialogoKm = false },
-            onGuardar = { km ->
-                onAnotarKm(km)
-                mostrarDialogoKm = false
+            onDismiss = cerrar,
+            onGuardar = { fecha, km ->
+                onAnotarKm(fecha, km)
+                cerrar()
+            }
+        )
+        is DialogoMoto.HechoHoy -> {
+            val km = uiState.ultimaLectura?.km
+            if (km == null) {
+                Confirmacion(
+                    titulo = "Primero anota los km",
+                    texto = "\"Hecho hoy\" usa lo que marca el odómetro. Anota los km y vuelve a intentarlo.",
+                    boton = "Anotar km",
+                    onConfirmar = { dialogo = DialogoMoto.Km },
+                    onCancelar = cerrar
+                )
+            } else {
+                Confirmacion(
+                    titulo = "${d.tipo.icono} ${d.tipo.nombre}",
+                    texto = "¿Marcar como hecha hoy a los ${formatearKm(km)}? Si fue otro día o con otros km, " +
+                        "regístrala desde su detalle.",
+                    boton = "Hecho hoy",
+                    onConfirmar = {
+                        onHechoHoy(d.tipo)
+                        cerrar()
+                    },
+                    onCancelar = cerrar
+                )
+            }
+        }
+        DialogoMoto.NuevoTipo -> DialogoTipo(
+            inicial = null,
+            onDismiss = cerrar,
+            onGuardar = { intervalo, icono ->
+                onCrearTipo(intervalo, icono)
+                cerrar()
             }
         )
     }
 }
 
 @Composable
-private fun colorSemaforo(semaforo: Semaforo): Color = when (semaforo) {
+internal fun colorSemaforo(semaforo: Semaforo): Color = when (semaforo) {
     Semaforo.SIN_REGISTRO -> MaterialTheme.colorScheme.outline
     Semaforo.VERDE -> ColorIngreso
     Semaforo.AMARILLO -> ColorDestacado
@@ -114,7 +179,7 @@ private fun hace(fecha: LocalDate, hoy: LocalDate = LocalDate.now()): String =
 
 // Tarjeta principal: lo que marca el odómetro y lo próximo que toca (como la racha en Gym).
 @Composable
-private fun TarjetaTablero(uiState: MotoUiState, onActualizarKm: () -> Unit) {
+private fun TarjetaTablero(uiState: MotoUiState, onActualizarKm: () -> Unit, onVerLecturasClick: () -> Unit) {
     val blanco = Color.White
     val lectura: LecturaKm? = uiState.ultimaLectura
     Column(
@@ -200,6 +265,15 @@ private fun TarjetaTablero(uiState: MotoUiState, onActualizarKm: () -> Unit) {
         ) {
             Text(if (lectura == null) "Anotar km" else "Actualizar km", fontWeight = FontWeight.SemiBold)
         }
+        if (lectura != null) {
+            TextButton(
+                onClick = onVerLecturasClick,
+                colors = ButtonDefaults.textButtonColors(contentColor = blanco),
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text("Historial de km ›")
+            }
+        }
     }
 }
 
@@ -213,7 +287,12 @@ private fun textoProximo(estado: EstadoMantencion, ritmo: Double?): String {
 
 // Todas las mantenciones del plan, de la más urgente a la menos.
 @Composable
-private fun TarjetaPlan(estados: List<EstadoMantencion>) {
+private fun TarjetaPlan(
+    estados: List<EstadoMantencion>,
+    onMantencionClick: (Long) -> Unit,
+    onHechoHoyClick: (TipoMantencion) -> Unit,
+    onNuevaClick: () -> Unit
+) {
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -228,7 +307,8 @@ private fun TarjetaPlan(estados: List<EstadoMantencion>) {
             )
             if (estados.any { it.progreso == null }) {
                 Text(
-                    text = "Las que dicen \"Sin registro\" empiezan a contar cuando anotes la última vez que las hiciste.",
+                    text = "Las que dicen \"Sin registro\" empiezan a contar cuando anotes la última vez que las hiciste. " +
+                        "Toca una para registrarla o editarla; ✓ la marca como hecha hoy.",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextoSuave,
                     modifier = Modifier.padding(top = 4.dp)
@@ -236,18 +316,29 @@ private fun TarjetaPlan(estados: List<EstadoMantencion>) {
             }
             estados.forEachIndexed { i, estado ->
                 if (i > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                FilaMantencion(estado)
+                FilaMantencion(
+                    estado = estado,
+                    onClick = { onMantencionClick(estado.tipo.id) },
+                    onHechoHoyClick = { onHechoHoyClick(estado.tipo) }
+                )
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            TextButton(onClick = onNuevaClick, modifier = Modifier.padding(top = 4.dp)) {
+                Text("+ Nueva mantención")
             }
         }
     }
 }
 
 @Composable
-private fun FilaMantencion(estado: EstadoMantencion) {
+private fun FilaMantencion(estado: EstadoMantencion, onClick: () -> Unit, onHechoHoyClick: () -> Unit) {
     val color = colorSemaforo(estado.semaforo)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp)
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -282,11 +373,14 @@ private fun FilaMantencion(estado: EstadoMantencion) {
                 )
             }
         }
+        IconButton(onClick = onHechoHoyClick) {
+            Icon(Icons.Filled.Check, contentDescription = "Hecho hoy", tint = MaterialTheme.colorScheme.primary)
+        }
     }
 }
 
 @Composable
-private fun EtiquetaEstado(semaforo: Semaforo, color: Color) {
+internal fun EtiquetaEstado(semaforo: Semaforo, color: Color) {
     Text(
         text = etiquetaSemaforo(semaforo),
         style = MaterialTheme.typography.labelSmall,
@@ -301,7 +395,7 @@ private fun EtiquetaEstado(semaforo: Semaforo, color: Color) {
 }
 
 @Composable
-private fun BarraProgreso(fraccion: Float, color: Color, fondo: Color, modifier: Modifier = Modifier) {
+internal fun BarraProgreso(fraccion: Float, color: Color, fondo: Color, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -317,53 +411,4 @@ private fun BarraProgreso(fraccion: Float, color: Color, fondo: Color, modifier:
                 .background(color)
         )
     }
-}
-
-// Teclado numérico directo: anotar el km tiene que tomar pocos segundos.
-@Composable
-private fun DialogoKm(kmAnterior: Int?, onDismiss: () -> Unit, onGuardar: (Int) -> Unit) {
-    var texto by remember { mutableStateOf("") }
-    val km = texto.toIntOrNull()
-    // Bajar de km casi siempre es un error de tipeo (editar y borrar lecturas llega en el próximo corte).
-    val menorQueAnterior = km != null && kmAnterior != null && km < kmAnterior
-    val foco = remember { FocusRequester() }
-    LaunchedEffect(Unit) { foco.requestFocus() }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("¿Cuántos km marca?") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = texto,
-                    onValueChange = { nuevo -> texto = nuevo.filter(Char::isDigit).take(7) },
-                    label = { Text("Kilómetros") },
-                    singleLine = true,
-                    isError = menorQueAnterior,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.focusRequester(foco)
-                )
-                when {
-                    menorQueAnterior -> Text(
-                        text = "Es menos que la última lectura (${formatearKm(kmAnterior!!)}).",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    kmAnterior != null -> Text(
-                        text = "Última lectura: ${formatearKm(kmAnterior)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextoSuave
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { km?.let(onGuardar) }, enabled = km != null && !menorQueAnterior) {
-                Text("Guardar")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
-        }
-    )
 }
