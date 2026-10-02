@@ -1,19 +1,22 @@
 package com.wuelmer.vidaos.ui.navegacion
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 
 enum class Modulo(val ruta: String, val etiqueta: String) {
     FINANZAS("finanzas", "Finanzas"),
-    GYM("gym", "Gym");
+    GYM("gym", "Gym"),
+    MOTO("moto", "Moto");
 
     // Getter (no propiedad del enum) para no construir íconos al cargar la clase, p. ej. en tests.
     val icono: ImageVector
         get() = when (this) {
             FINANZAS -> Icons.Filled.ShoppingCart
             GYM -> Icons.Filled.Favorite
+            MOTO -> Icons.Filled.Build
         }
 }
 

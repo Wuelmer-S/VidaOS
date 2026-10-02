@@ -30,3 +30,15 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_borrador_series_diaRutinaId` ON `borrador_series` (`diaRutinaId`)")
     }
 }
+
+// v4: módulo Moto (lecturas de km, plan de mantención y registros). No toca tablas existentes.
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `lecturas_km` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `fecha` INTEGER NOT NULL, `km` INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `tipos_mantencion` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT NOT NULL, `icono` TEXT NOT NULL, `cadaKm` INTEGER, `cadaDias` INTEGER, `avisarAlPct` INTEGER NOT NULL, `trabajoId` INTEGER, `activo` INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `registros_mantencion` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tipoId` INTEGER NOT NULL, `fecha` INTEGER NOT NULL, `km` INTEGER NOT NULL, `costo` INTEGER, `hechoPor` TEXT NOT NULL, `notas` TEXT, `movimientoId` INTEGER, FOREIGN KEY(`tipoId`) REFERENCES `tipos_mantencion`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_registros_mantencion_tipoId` ON `registros_mantencion` (`tipoId`)")
+
+        SeedMoto.insertar(db)
+    }
+}

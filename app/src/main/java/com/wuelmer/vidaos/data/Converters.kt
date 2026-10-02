@@ -46,4 +46,10 @@ class Converters {
 
     @TypeConverter
     fun toZonaEjercicio(value: String?): ZonaEjercicio? = value?.let(ZonaEjercicio::valueOf)
+
+    @TypeConverter
+    fun fromHechoPor(value: HechoPor?): String? = value?.name
+
+    @TypeConverter
+    fun toHechoPor(value: String?): HechoPor? = value?.let(HechoPor::valueOf)
 }

@@ -19,9 +19,12 @@ import kotlinx.coroutines.launch
         RutinaEjercicio::class,
         SesionGym::class,
         SerieGym::class,
-        BorradorSerie::class
+        BorradorSerie::class,
+        LecturaKm::class,
+        TipoMantencion::class,
+        RegistroMantencion::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -30,6 +33,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
     abstract fun movimientoDao(): MovimientoDao
     abstract fun categoriaDao(): CategoriaDao
     abstract fun gymDao(): GymDao
+    abstract fun motoDao(): MotoDao
 
     companion object {
         const val NOMBRE_ARCHIVO = "vidaos.db"
@@ -44,7 +48,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
                     VidaOSDatabase::class.java,
                     NOMBRE_ARCHIVO
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .addCallback(SeedCategoriasCallback(scope))
                     .build()
                 INSTANCE = instance
@@ -58,6 +62,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
                 SeedGym.insertar(db)
+                SeedMoto.insertar(db)
                 INSTANCE?.let { database ->
                     scope.launch {
                         database.categoriaDao().insertAll(CategoriasIniciales.lista)

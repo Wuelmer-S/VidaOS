@@ -14,7 +14,7 @@ class ModuloTest {
 
     @Test
     fun ocultarUno_loQuita() {
-        assertEquals(listOf(Modulo.GYM), modulosVisibles(setOf(Modulo.FINANZAS.name)))
+        assertEquals(listOf(Modulo.GYM, Modulo.MOTO), modulosVisibles(setOf(Modulo.FINANZAS.name)))
     }
 
     @Test
@@ -34,6 +34,6 @@ class ModuloTest {
 
     @Test
     fun elUltimoVisible_noSePuedeOcultar() {
-        assertFalse(puedeOcultar(Modulo.GYM, setOf(Modulo.FINANZAS.name)))
+        assertFalse(puedeOcultar(Modulo.GYM, setOf(Modulo.FINANZAS.name, Modulo.MOTO.name)))
     }
 }
