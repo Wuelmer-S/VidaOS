@@ -84,7 +84,7 @@ fun MotoScreen(
     uiState: MotoUiState?,
     onAnotarKm: (LocalDate, Int) -> Unit,
     onHechoHoy: (TipoMantencion) -> Unit,
-    onCrearTipo: (IntervaloValido, String) -> Unit,
+    onCrearTipo: (IntervaloValido, String, Long?) -> Unit,
     onMantencionClick: (tipoId: Long) -> Unit,
     onVerLecturasClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -153,9 +153,10 @@ fun MotoScreen(
         }
         DialogoMoto.NuevoTipo -> DialogoTipo(
             inicial = null,
+            trabajos = uiState.trabajos,
             onDismiss = cerrar,
-            onGuardar = { intervalo, icono ->
-                onCrearTipo(intervalo, icono)
+            onGuardar = { intervalo, icono, trabajoId ->
+                onCrearTipo(intervalo, icono, trabajoId)
                 cerrar()
             }
         )

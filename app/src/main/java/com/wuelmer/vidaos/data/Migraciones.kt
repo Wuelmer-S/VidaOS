@@ -42,3 +42,15 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         SeedMoto.insertar(db)
     }
 }
+
+// v5: fichas de trabajo de la moto (llaves, torques, materiales y pasos). No toca tablas existentes:
+// solo enlaza por nombre los tipos de mantención del plan con su ficha.
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `trabajos` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT NOT NULL, `icono` TEXT NOT NULL, `pasos` TEXT NOT NULL, `materiales` TEXT NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `ajustes_trabajo` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `trabajoId` INTEGER NOT NULL, `parte` TEXT NOT NULL, `llave` TEXT, `torqueNm` INTEGER, `verificado` INTEGER NOT NULL, `orden` INTEGER NOT NULL, FOREIGN KEY(`trabajoId`) REFERENCES `trabajos`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_ajustes_trabajo_trabajoId` ON `ajustes_trabajo` (`trabajoId`)")
+
+        SeedFichas.insertar(db)
+    }
+}

@@ -22,9 +22,11 @@ import kotlinx.coroutines.launch
         BorradorSerie::class,
         LecturaKm::class,
         TipoMantencion::class,
-        RegistroMantencion::class
+        RegistroMantencion::class,
+        Trabajo::class,
+        AjusteTrabajo::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -48,7 +50,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
                     VidaOSDatabase::class.java,
                     NOMBRE_ARCHIVO
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .addCallback(SeedCategoriasCallback(scope))
                     .build()
                 INSTANCE = instance
@@ -63,6 +65,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
                 super.onCreate(db)
                 SeedGym.insertar(db)
                 SeedMoto.insertar(db)
+                SeedFichas.insertar(db)
                 INSTANCE?.let { database ->
                     scope.launch {
                         database.categoriaDao().insertAll(CategoriasIniciales.lista)

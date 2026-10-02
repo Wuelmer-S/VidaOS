@@ -11,6 +11,7 @@ import com.wuelmer.vidaos.data.LecturaKm
 import com.wuelmer.vidaos.data.MotoDao
 import com.wuelmer.vidaos.data.RegistroMantencion
 import com.wuelmer.vidaos.data.TipoMantencion
+import com.wuelmer.vidaos.data.Trabajo
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -22,8 +23,12 @@ data class DetalleMantencionUiState(
     val cargando: Boolean = true,
     val estado: EstadoMantencion? = null,   // null cuando ya cargó = el tipo fue borrado
     val registros: List<RegistroMantencion> = emptyList(),
-    val kmActual: Int? = null
-)
+    val kmActual: Int? = null,
+    val trabajos: List<Trabajo> = emptyList()
+) {
+    // Ficha enlazada a esta mantención, si tiene.
+    val trabajo: Trabajo? get() = estado?.tipo?.trabajoId?.let { id -> trabajos.firstOrNull { it.id == id } }
+}
 
 class DetalleMantencionViewModel(
     private val tipoId: Long,
@@ -33,14 +38,16 @@ class DetalleMantencionViewModel(
     val uiState: StateFlow<DetalleMantencionUiState> = combine(
         motoDao.getTipo(tipoId),
         motoDao.getRegistrosDeTipo(tipoId),
-        motoDao.getLecturas()
-    ) { tipo, registros, lecturas ->
+        motoDao.getLecturas(),
+        motoDao.getTrabajos()
+    ) { tipo, registros, lecturas, trabajos ->
         val kmActual = lecturas.firstOrNull()?.km
         DetalleMantencionUiState(
             cargando = false,
             estado = tipo?.let { calcularEstado(it, registros.firstOrNull(), kmActual, LocalDate.now()) },
             registros = registros,
-            kmActual = kmActual
+            kmActual = kmActual,
+            trabajos = trabajos
         )
     }.stateIn(
         scope = viewModelScope,
@@ -67,10 +74,16 @@ class DetalleMantencionViewModel(
         viewModelScope.launch { motoDao.deleteRegistro(registro) }
     }
 
-    fun actualizarTipo(tipo: TipoMantencion, intervalo: IntervaloValido, icono: String) {
+    fun actualizarTipo(tipo: TipoMantencion, intervalo: IntervaloValido, icono: String, trabajoId: Long?) {
         viewModelScope.launch {
             motoDao.updateTipo(
-                tipo.copy(nombre = intervalo.nombre, icono = icono, cadaKm = intervalo.cadaKm, cadaDias = intervalo.cadaDias)
+                tipo.copy(
+                    nombre = intervalo.nombre,
+                    icono = icono,
+                    cadaKm = intervalo.cadaKm,
+                    cadaDias = intervalo.cadaDias,
+                    trabajoId = trabajoId
+                )
             )
         }
     }

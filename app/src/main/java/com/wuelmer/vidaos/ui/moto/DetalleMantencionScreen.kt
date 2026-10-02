@@ -25,6 +25,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,6 +54,7 @@ import java.time.LocalDate
 fun DetalleMantencionRoute(
     tipoId: Long,
     onBackClick: () -> Unit,
+    onVerFicha: (trabajoId: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val viewModel: DetalleMantencionViewModel = viewModel(
@@ -66,6 +68,7 @@ fun DetalleMantencionRoute(
         onGuardarRegistro = viewModel::guardarRegistro,
         onEliminarRegistro = viewModel::eliminarRegistro,
         onActualizarTipo = viewModel::actualizarTipo,
+        onVerFicha = onVerFicha,
         onEliminarTipo = { tipo -> viewModel.eliminarTipo(tipo, onEliminado = onBackClick) },
         modifier = modifier
     )
@@ -88,7 +91,8 @@ fun DetalleMantencionScreen(
     onBackClick: () -> Unit,
     onGuardarRegistro: (RegistroMantencion?, LocalDate, Int, HechoPor, String?) -> Unit,
     onEliminarRegistro: (RegistroMantencion) -> Unit,
-    onActualizarTipo: (TipoMantencion, IntervaloValido, String) -> Unit,
+    onActualizarTipo: (TipoMantencion, IntervaloValido, String, Long?) -> Unit,
+    onVerFicha: (trabajoId: Long) -> Unit,
     onEliminarTipo: (TipoMantencion) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -146,6 +150,15 @@ fun DetalleMantencionScreen(
             ) {
                 Text("Registrar mantención")
             }
+            uiState.trabajo?.let { trabajo ->
+                OutlinedButton(
+                    onClick = { onVerFicha(trabajo.id) },
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("${trabajo.icono} ¿Qué necesito? Ver ficha")
+                }
+            }
             TarjetaHistorial(uiState.registros, onRegistroClick = { edicion = Edicion.Registro(it) })
         }
     }
@@ -169,9 +182,10 @@ fun DetalleMantencionScreen(
         }
         Edicion.Tipo -> DialogoTipo(
             inicial = estado.tipo,
+            trabajos = uiState.trabajos,
             onDismiss = { edicion = Edicion.Ninguna },
-            onGuardar = { intervalo, icono ->
-                onActualizarTipo(estado.tipo, intervalo, icono)
+            onGuardar = { intervalo, icono, trabajoId ->
+                onActualizarTipo(estado.tipo, intervalo, icono, trabajoId)
                 edicion = Edicion.Ninguna
             }
         )

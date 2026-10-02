@@ -59,3 +59,40 @@ data class RegistroMantencion(
     val notas: String? = null,
     val movimientoId: Long? = null
 )
+
+// Ficha "¿qué necesito para...?": un trabajo que el usuario hace con sus manos.
+// pasos y materiales: uno por línea (texto libre, editable).
+@Entity(tableName = "trabajos")
+data class Trabajo(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val nombre: String,
+    val icono: String,
+    val pasos: String,
+    val materiales: String
+)
+
+// Un perno o tuerca del trabajo: con qué llave se suelta y a qué torque se aprieta.
+// verificado = el usuario confirmó la medida de la llave en su moto (los datos de foros parten en false).
+@Entity(
+    tableName = "ajustes_trabajo",
+    foreignKeys = [
+        ForeignKey(
+            entity = Trabajo::class,
+            parentColumns = ["id"],
+            childColumns = ["trabajoId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("trabajoId")]
+)
+data class AjusteTrabajo(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val trabajoId: Long,
+    val parte: String,
+    val llave: String?,
+    val torqueNm: Int?,
+    val verificado: Boolean = false,
+    val orden: Int = 0
+)

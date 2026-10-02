@@ -10,6 +10,7 @@ import com.wuelmer.vidaos.data.LecturaKm
 import com.wuelmer.vidaos.data.MotoDao
 import com.wuelmer.vidaos.data.RegistroMantencion
 import com.wuelmer.vidaos.data.TipoMantencion
+import com.wuelmer.vidaos.data.Trabajo
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -20,7 +21,8 @@ import java.time.LocalDate
 data class MotoUiState(
     val ultimaLectura: LecturaKm?,
     val ritmoKmDia: Double?,
-    val estados: List<EstadoMantencion>
+    val estados: List<EstadoMantencion>,
+    val trabajos: List<Trabajo> = emptyList()
 ) {
     // La de mayor % de vida usada; null si no hay ninguna registrada.
     val masUrgente: EstadoMantencion? get() = estados.firstOrNull { it.progreso != null }
@@ -32,8 +34,9 @@ class MotoViewModel(private val motoDao: MotoDao) : ViewModel() {
     val uiState: StateFlow<MotoUiState?> = combine(
         motoDao.getLecturas(),
         motoDao.getTiposActivos(),
-        motoDao.getUltimosRegistros()
-    ) { lecturas, tipos, ultimos ->
+        motoDao.getUltimosRegistros(),
+        motoDao.getTrabajos()
+    ) { lecturas, tipos, ultimos, trabajos ->
         val hoy = LocalDate.now()
         val ultimaLectura = lecturas.firstOrNull()
         val ultimoPorTipo = ultimos.associateBy { it.tipoId }
@@ -42,7 +45,8 @@ class MotoViewModel(private val motoDao: MotoDao) : ViewModel() {
             ritmoKmDia = ritmoKmPorDia(lecturas, hoy),
             estados = ordenarPorUrgencia(
                 tipos.map { calcularEstado(it, ultimoPorTipo[it.id], ultimaLectura?.km, hoy) }
-            )
+            ),
+            trabajos = trabajos
         )
     }.stateIn(
         scope = viewModelScope,
@@ -64,10 +68,16 @@ class MotoViewModel(private val motoDao: MotoDao) : ViewModel() {
         }
     }
 
-    fun crearTipo(intervalo: IntervaloValido, icono: String) {
+    fun crearTipo(intervalo: IntervaloValido, icono: String, trabajoId: Long?) {
         viewModelScope.launch {
             motoDao.insertTipo(
-                TipoMantencion(nombre = intervalo.nombre, icono = icono, cadaKm = intervalo.cadaKm, cadaDias = intervalo.cadaDias)
+                TipoMantencion(
+                    nombre = intervalo.nombre,
+                    icono = icono,
+                    cadaKm = intervalo.cadaKm,
+                    cadaDias = intervalo.cadaDias,
+                    trabajoId = trabajoId
+                )
             )
         }
     }

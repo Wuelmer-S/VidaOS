@@ -13,6 +13,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,10 +28,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.wuelmer.vidaos.data.AjusteTrabajo
 import com.wuelmer.vidaos.data.HechoPor
 import com.wuelmer.vidaos.data.LecturaKm
 import com.wuelmer.vidaos.data.RegistroMantencion
 import com.wuelmer.vidaos.data.TipoMantencion
+import com.wuelmer.vidaos.data.Trabajo
 import com.wuelmer.vidaos.ui.gym.SelectorFecha
 import com.wuelmer.vidaos.ui.theme.ColorGasto
 import com.wuelmer.vidaos.ui.theme.TextoSuave
@@ -200,8 +203,9 @@ private val ICONOS = listOf("🔧", "🛢️", "🧴", "⛓️", "🌬️", "⚡
 @Composable
 fun DialogoTipo(
     inicial: TipoMantencion?,
+    trabajos: List<Trabajo>,
     onDismiss: () -> Unit,
-    onGuardar: (IntervaloValido, icono: String) -> Unit
+    onGuardar: (IntervaloValido, icono: String, trabajoId: Long?) -> Unit
 ) {
     val tiempoInicial = inicial?.cadaDias?.let(::descomponerDias)
     var nombre by remember { mutableStateOf(inicial?.nombre.orEmpty()) }
@@ -210,6 +214,7 @@ fun DialogoTipo(
     var tiempoTexto by remember { mutableStateOf(tiempoInicial?.first?.toString().orEmpty()) }
     var unidad by remember { mutableStateOf(tiempoInicial?.second ?: UnidadTiempo.MESES) }
     var mostrarError by remember { mutableStateOf(false) }
+    var trabajoId by remember { mutableStateOf(inicial?.trabajoId?.takeIf { id -> trabajos.any { it.id == id } }) }
     val resultado = validarTipo(nombre, kmTexto, tiempoTexto, unidad)
 
     AlertDialog(
@@ -259,6 +264,15 @@ fun DialogoTipo(
                         FilterChip(selected = unidad == u, onClick = { unidad = u }, label = { Text(u.etiqueta) })
                     }
                 }
+                if (trabajos.isNotEmpty()) {
+                    Text("Ficha de trabajo", style = MaterialTheme.typography.labelMedium, color = TextoSuave)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        FilterChip(selected = trabajoId == null, onClick = { trabajoId = null }, label = { Text("Ninguna") })
+                        trabajos.forEach { t ->
+                            FilterChip(selected = trabajoId == t.id, onClick = { trabajoId = t.id }, label = { Text("${t.icono} ${t.nombre}") })
+                        }
+                    }
+                }
                 if (mostrarError) {
                     resultado.exceptionOrNull()?.let {
                         Text(it.message.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -268,10 +282,148 @@ fun DialogoTipo(
         },
         confirmButton = {
             TextButton(onClick = {
-                resultado.onSuccess { onGuardar(it, icono) }.onFailure { mostrarError = true }
+                resultado.onSuccess { onGuardar(it, icono, trabajoId) }.onFailure { mostrarError = true }
             }) { Text("Guardar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
 }
 
+
+// Crear (inicial = null) o editar una ficha de trabajo. Pasos y materiales: uno por línea.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun DialogoTrabajo(
+    inicial: Trabajo?,
+    onDismiss: () -> Unit,
+    onGuardar: (nombre: String, icono: String, pasos: String, materiales: String) -> Unit
+) {
+    var nombre by remember { mutableStateOf(inicial?.nombre.orEmpty()) }
+    var icono by remember { mutableStateOf(inicial?.icono ?: ICONOS.first()) }
+    var materiales by remember { mutableStateOf(inicial?.materiales.orEmpty()) }
+    var pasos by remember { mutableStateOf(inicial?.pasos.orEmpty()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (inicial == null) "Nueva ficha" else "Editar ficha") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                OutlinedTextField(
+                    value = nombre,
+                    onValueChange = { nombre = it.take(40) },
+                    label = { Text("Trabajo") },
+                    placeholder = { Text("Ej.: Cambiar bujía") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ICONOS.forEach { e ->
+                        FilterChip(selected = icono == e, onClick = { icono = e }, label = { Text(e) })
+                    }
+                }
+                OutlinedTextField(
+                    value = materiales,
+                    onValueChange = { materiales = it.take(1000) },
+                    label = { Text("Materiales (uno por línea)") },
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = pasos,
+                    onValueChange = { pasos = it.take(3000) },
+                    label = { Text("Pasos (uno por línea)") },
+                    minLines = 5,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onGuardar(nombre.trim(), icono, lineas(pasos).joinToString("\n"), lineas(materiales).joinToString("\n")) },
+                enabled = nombre.isNotBlank()
+            ) { Text("Guardar") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+// Crear (inicial = null) o editar un perno de la ficha: qué parte, con qué llave y a qué torque.
+@Composable
+fun DialogoAjuste(
+    inicial: AjusteTrabajo?,
+    onDismiss: () -> Unit,
+    onGuardar: (parte: String, llave: String?, torqueNm: Int?, verificado: Boolean) -> Unit,
+    onEliminar: (() -> Unit)? = null
+) {
+    var parte by remember { mutableStateOf(inicial?.parte.orEmpty()) }
+    var llave by remember { mutableStateOf(inicial?.llave.orEmpty()) }
+    var torque by remember { mutableStateOf(inicial?.torqueNm?.toString().orEmpty()) }
+    var verificado by remember { mutableStateOf(inicial?.verificado ?: false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (inicial == null) "Nuevo perno" else "Editar perno") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                OutlinedTextField(
+                    value = parte,
+                    onValueChange = { parte = it.take(60) },
+                    label = { Text("Parte") },
+                    placeholder = { Text("Ej.: Tapón de drenaje") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = llave,
+                    onValueChange = { llave = it.take(40) },
+                    label = { Text("Llave o dado") },
+                    placeholder = { Text("Ej.: Dado 17 mm") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = torque,
+                    onValueChange = { torque = soloDigitos(it).take(3) },
+                    label = { Text("Torque en N·m (opcional)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Lo verifiqué en mi moto", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = "Probé que esa llave calza en este perno",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextoSuave
+                        )
+                    }
+                    Switch(checked = verificado, onCheckedChange = { verificado = it }, enabled = llave.isNotBlank())
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val llaveLimpia = llave.trim().ifEmpty { null }
+                    onGuardar(parte.trim(), llaveLimpia, torque.toIntOrNull()?.takeIf { it > 0 }, verificado && llaveLimpia != null)
+                },
+                enabled = parte.isNotBlank()
+            ) { Text("Guardar") }
+        },
+        dismissButton = {
+            Row {
+                if (onEliminar != null) {
+                    TextButton(onClick = onEliminar) { Text("Eliminar", color = ColorGasto) }
+                }
+                TextButton(onClick = onDismiss) { Text("Cancelar") }
+            }
+        }
+    )
+}

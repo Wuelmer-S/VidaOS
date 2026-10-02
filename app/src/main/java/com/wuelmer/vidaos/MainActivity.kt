@@ -53,6 +53,8 @@ import com.wuelmer.vidaos.ui.gym.ProgresoGymRoute
 import com.wuelmer.vidaos.ui.gym.SesionGymRoute
 import com.wuelmer.vidaos.ui.historial.HistorialRoute
 import com.wuelmer.vidaos.ui.moto.DetalleMantencionRoute
+import com.wuelmer.vidaos.ui.moto.FichaRoute
+import com.wuelmer.vidaos.ui.moto.FichasRoute
 import com.wuelmer.vidaos.ui.moto.LecturasKmRoute
 import com.wuelmer.vidaos.ui.moto.MotoRoute
 import com.wuelmer.vidaos.ui.movimientos.MovimientosRoute
@@ -67,7 +69,9 @@ private enum class Pestana(val modulo: Modulo, val ruta: String, val etiqueta: S
     REGISTRAR(Modulo.FINANZAS, "registrar", "Registrar"),
     MOVIMIENTOS(Modulo.FINANZAS, "movimientos", "Movimientos"),
     GYM_PROGRESO(Modulo.GYM, "gym_progreso", "Progreso"),
-    GYM_SESIONES(Modulo.GYM, "gym_inicio", "Sesiones");
+    GYM_SESIONES(Modulo.GYM, "gym_inicio", "Sesiones"),
+    MOTO_PLAN(Modulo.MOTO, "moto_inicio", "Plan"),
+    MOTO_FICHAS(Modulo.MOTO, "moto_fichas", "Fichas");
 
     companion object {
         fun delModulo(modulo: Modulo): List<Pestana> = entries.filter { it.modulo == modulo }
@@ -87,11 +91,11 @@ private const val RUTA_GYM_DETALLE = "gym_detalle/{$ARG_SESION_ID}"
 private const val ARG_EJERCICIO_ID = "ejercicioId"
 private const val RUTA_GYM_EJERCICIO = "gym_ejercicio/{$ARG_EJERCICIO_ID}"
 private const val RUTA_CONFIGURACION = "configuracion"
-// Moto tiene una sola pantalla principal (sin pestañas): el encabezado muestra solo el título.
-private const val RUTA_MOTO_INICIO = "moto_inicio"
 private const val ARG_TIPO_ID = "tipoId"
 private const val RUTA_MOTO_MANTENCION = "moto_mantencion/{$ARG_TIPO_ID}"
 private const val RUTA_MOTO_KM = "moto_km"
+private const val ARG_TRABAJO_ID = "trabajoId"
+private const val RUTA_MOTO_FICHA = "moto_ficha/{$ARG_TRABAJO_ID}"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -139,7 +143,7 @@ private fun VidaOSApp(modulos: List<Modulo>) {
         destinoActual?.hierarchy?.any { it.route == modulo.ruta } == true
     }
     val pestanaActual = Pestana.entries.firstOrNull { it.ruta == rutaActual }
-    val esPantallaPrincipal = pestanaActual != null || rutaActual == RUTA_MOTO_INICIO
+    val esPantallaPrincipal = pestanaActual != null
 
     // Si se ocultó el módulo en el que estaba (p. ej. al volver de Configuración), ir al primero visible.
     LaunchedEffect(moduloActual, modulos) {
@@ -269,10 +273,10 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                     }
                 }
                 navigation(
-                    startDestination = RUTA_MOTO_INICIO,
+                    startDestination = Pestana.MOTO_PLAN.ruta,
                     route = Modulo.MOTO.ruta
                 ) {
-                    composable(RUTA_MOTO_INICIO) {
+                    composable(Pestana.MOTO_PLAN.ruta) {
                         MotoRoute(
                             onMantencionClick = { id -> navController.navigate("moto_mantencion/$id") },
                             onVerLecturasClick = { navController.navigate(RUTA_MOTO_KM) }
@@ -284,6 +288,19 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                     ) { entry ->
                         DetalleMantencionRoute(
                             tipoId = entry.arguments?.getLong(ARG_TIPO_ID) ?: 0L,
+                            onBackClick = { navController.popBackStack() },
+                            onVerFicha = { id -> navController.navigate("moto_ficha/$id") }
+                        )
+                    }
+                    composable(Pestana.MOTO_FICHAS.ruta) {
+                        FichasRoute(onFichaClick = { id -> navController.navigate("moto_ficha/$id") })
+                    }
+                    composable(
+                        route = RUTA_MOTO_FICHA,
+                        arguments = listOf(navArgument(ARG_TRABAJO_ID) { type = NavType.LongType })
+                    ) { entry ->
+                        FichaRoute(
+                            trabajoId = entry.arguments?.getLong(ARG_TRABAJO_ID) ?: 0L,
                             onBackClick = { navController.popBackStack() }
                         )
                     }

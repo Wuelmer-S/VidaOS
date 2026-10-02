@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -63,4 +64,45 @@ interface MotoDao {
 
     @Delete
     suspend fun deleteRegistro(registro: RegistroMantencion)
+
+    @Query("SELECT * FROM trabajos ORDER BY id")
+    fun getTrabajos(): Flow<List<Trabajo>>
+
+    @Query("SELECT * FROM trabajos WHERE id = :trabajoId")
+    fun getTrabajo(trabajoId: Long): Flow<Trabajo?>
+
+    @Insert
+    suspend fun insertTrabajo(trabajo: Trabajo): Long
+
+    @Update
+    suspend fun updateTrabajo(trabajo: Trabajo)
+
+    @Delete
+    suspend fun deleteTrabajoSolo(trabajo: Trabajo)
+
+    // trabajoId en tipos_mantencion no es ForeignKey (se agregó antes que la tabla): se suelta a mano.
+    @Query("UPDATE tipos_mantencion SET trabajoId = NULL WHERE trabajoId = :trabajoId")
+    suspend fun desvincularTrabajo(trabajoId: Long)
+
+    // Los ajustes se borran solos (CASCADE).
+    @Transaction
+    suspend fun deleteTrabajo(trabajo: Trabajo) {
+        desvincularTrabajo(trabajo.id)
+        deleteTrabajoSolo(trabajo)
+    }
+
+    @Query("SELECT * FROM ajustes_trabajo ORDER BY trabajoId, orden, id")
+    fun getAjustes(): Flow<List<AjusteTrabajo>>
+
+    @Query("SELECT * FROM ajustes_trabajo WHERE trabajoId = :trabajoId ORDER BY orden, id")
+    fun getAjustesDeTrabajo(trabajoId: Long): Flow<List<AjusteTrabajo>>
+
+    @Insert
+    suspend fun insertAjuste(ajuste: AjusteTrabajo): Long
+
+    @Update
+    suspend fun updateAjuste(ajuste: AjusteTrabajo)
+
+    @Delete
+    suspend fun deleteAjuste(ajuste: AjusteTrabajo)
 }
