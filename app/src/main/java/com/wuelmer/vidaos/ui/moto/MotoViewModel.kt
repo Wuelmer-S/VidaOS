@@ -8,6 +8,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
 import com.wuelmer.vidaos.data.LecturaKm
 import com.wuelmer.vidaos.data.MotoDao
+import com.wuelmer.vidaos.data.RegistroMantencion
+import com.wuelmer.vidaos.data.TipoMantencion
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -48,9 +50,25 @@ class MotoViewModel(private val motoDao: MotoDao) : ViewModel() {
         initialValue = null
     )
 
-    fun anotarKm(km: Int) {
+    fun anotarKm(fecha: LocalDate, km: Int) {
         viewModelScope.launch {
-            motoDao.insertLectura(LecturaKm(fecha = LocalDate.now(), km = km))
+            motoDao.insertLectura(LecturaKm(fecha = fecha, km = km))
+        }
+    }
+
+    // Registro rápido con la fecha de hoy y el km actual. Sin km anotado no hace nada (la UI lo pide antes).
+    fun hechoHoy(tipo: TipoMantencion) {
+        val km = uiState.value?.ultimaLectura?.km ?: return
+        viewModelScope.launch {
+            motoDao.insertRegistro(RegistroMantencion(tipoId = tipo.id, fecha = LocalDate.now(), km = km))
+        }
+    }
+
+    fun crearTipo(intervalo: IntervaloValido, icono: String) {
+        viewModelScope.launch {
+            motoDao.insertTipo(
+                TipoMantencion(nombre = intervalo.nombre, icono = icono, cadaKm = intervalo.cadaKm, cadaDias = intervalo.cadaDias)
+            )
         }
     }
 

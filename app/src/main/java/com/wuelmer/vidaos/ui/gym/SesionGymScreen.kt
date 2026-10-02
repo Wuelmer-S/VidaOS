@@ -284,9 +284,10 @@ fun SesionGymScreen(
 }
 
 // El DatePicker trabaja en milisegundos UTC; se convierte con epochDay para no correr la fecha por la zona horaria.
+// No deja elegir fechas futuras. También lo usa el módulo Moto.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SelectorFecha(
+internal fun SelectorFecha(
     fecha: LocalDate,
     onConfirmar: (LocalDate) -> Unit,
     onCancelar: () -> Unit

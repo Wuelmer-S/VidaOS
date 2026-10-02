@@ -23,6 +23,9 @@ interface MotoDao {
     @Delete
     suspend fun deleteLectura(lectura: LecturaKm)
 
+    @Query("SELECT * FROM tipos_mantencion WHERE id = :tipoId")
+    fun getTipo(tipoId: Long): Flow<TipoMantencion?>
+
     @Query("SELECT * FROM tipos_mantencion WHERE activo = 1 ORDER BY id")
     fun getTiposActivos(): Flow<List<TipoMantencion>>
 
