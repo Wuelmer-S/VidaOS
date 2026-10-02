@@ -8,6 +8,7 @@ import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 data class EjercicioDelDia(
     @Embedded val objetivo: RutinaEjercicio,
@@ -15,6 +16,15 @@ data class EjercicioDelDia(
     val ejercicio: EjercicioGym,
     @Relation(parentColumn = "alternativaEjercicioId", entityColumn = "id")
     val alternativa: EjercicioGym?
+)
+
+// Mejor marca de un ejercicio en una sesión (máximos de sus series).
+data class PuntoEjercicio(
+    val sesionId: Long,
+    val fecha: LocalDate,
+    val pesoMaxKg: Double?,
+    val repsMax: Int?,
+    val segundosMax: Int?
 )
 
 data class SerieConEjercicio(
@@ -78,6 +88,27 @@ interface GymDao {
 
     @Query("SELECT * FROM sesiones_gym ORDER BY fecha DESC, id DESC")
     fun getSesiones(): Flow<List<SesionGym>>
+
+    @Query("SELECT * FROM ejercicios_gym WHERE id = :ejercicioId")
+    fun getEjercicio(ejercicioId: Long): Flow<EjercicioGym?>
+
+    @Query(
+        "SELECT s.id AS sesionId, s.fecha AS fecha, MAX(sg.pesoKg) AS pesoMaxKg, " +
+            "MAX(sg.repeticiones) AS repsMax, MAX(sg.segundos) AS segundosMax " +
+            "FROM series_gym sg JOIN sesiones_gym s ON s.id = sg.sesionId " +
+            "WHERE sg.ejercicioId = :ejercicioId GROUP BY s.id ORDER BY s.fecha, s.id"
+    )
+    fun getEvolucionEjercicio(ejercicioId: Long): Flow<List<PuntoEjercicio>>
+
+    // Ejercicios con al menos una serie registrada, para elegir cuál ver en Progreso.
+    @Query(
+        "SELECT * FROM ejercicios_gym WHERE id IN (SELECT DISTINCT ejercicioId FROM series_gym) ORDER BY nombre"
+    )
+    fun getEjerciciosConRegistros(): Flow<List<EjercicioGym>>
+
+    // Peso total levantado (kg × reps de cada serie con peso). En unilaterales cuenta un lado.
+    @Query("SELECT COALESCE(SUM(pesoKg * repeticiones), 0) FROM series_gym WHERE pesoKg IS NOT NULL AND repeticiones IS NOT NULL")
+    fun getVolumenTotalKg(): Flow<Double>
 
     @Query("SELECT * FROM series_gym WHERE sesionId = :sesionId ORDER BY orden")
     suspend fun getSeriesDeSesion(sesionId: Long): List<SerieGym>

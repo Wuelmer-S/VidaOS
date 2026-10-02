@@ -1,9 +1,11 @@
 package com.wuelmer.vidaos.ui.gym
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -53,6 +55,7 @@ fun DetalleSesionGymRoute(
     sesionId: Long,
     onBackClick: () -> Unit,
     onEditarClick: (diaRutinaId: Long) -> Unit,
+    onEjercicioClick: (ejercicioId: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val application = LocalContext.current.applicationContext as VidaOSApplication
@@ -75,6 +78,7 @@ fun DetalleSesionGymRoute(
         onBackClick = onBackClick,
         onEliminarConfirmado = { viewModel.eliminar(onEliminada = onBackClick) },
         onEditarClick = onEditarClick,
+        onEjercicioClick = onEjercicioClick,
         modifier = modifier
     )
 }
@@ -86,6 +90,7 @@ fun DetalleSesionGymScreen(
     onBackClick: () -> Unit,
     onEliminarConfirmado: () -> Unit,
     onEditarClick: (diaRutinaId: Long) -> Unit,
+    onEjercicioClick: (ejercicioId: Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var mostrarConfirmacion by remember { mutableStateOf(false) }
@@ -145,11 +150,24 @@ fun DetalleSesionGymScreen(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            text = grupo.ejercicio.nombre,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onEjercicioClick(grupo.ejercicio.id) }
+                        ) {
+                            Text(
+                                text = grupo.ejercicio.nombre,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = "Evolución ›",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         grupo.series.forEachIndexed { i, serie ->
                             Text(
                                 text = "Serie ${i + 1}: ${textoSerie(serie, grupo.ejercicio.tipo, grupo.ejercicio.unilateral, uiState.unidad)}",

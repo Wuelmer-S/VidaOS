@@ -2,6 +2,7 @@ package com.wuelmer.vidaos.ui.gym
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import com.wuelmer.vidaos.data.UnidadPeso
 import org.junit.Test
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -152,5 +153,62 @@ class ProgresoGymTest {
         assertEquals("jun", cal.first().etiquetaMes) // lunes 15 de junio
         val etiquetas = cal.mapNotNull { it.etiquetaMes }
         assertEquals(listOf("jun", "jul", "ago", "sep"), etiquetas)
+    }
+
+    // --- Resumen y logros ---
+
+    @Test
+    fun mejorRacha_tomaLaMasLargaDelHistorial() {
+        // 3 semanas seguidas hace tiempo, un corte, y 2 seguidas recientes.
+        val fechas = semana(8, 0, 2, 4) + semana(7, 0, 2, 4) + semana(6, 0, 2, 4) + semana(4, 0) +
+            semana(2, 0, 2, 4) + semana(1, 0, 2, 4)
+        assertEquals(3, mejorRacha(fechas))
+    }
+
+    @Test
+    fun mejorRacha_sinSemanasCumplidas_esCero() {
+        assertEquals(0, mejorRacha(semana(1, 0, 2)))
+    }
+
+    @Test
+    fun resumen_totalesYPromedio() {
+        // 7 sesiones (dos el mismo lunes) entre la semana de hace 2 y la actual = 3 semanas.
+        val fechas = semana(2, 0, 0, 2, 4) + semana(1, 1) + semana(0, 0, 1)
+        val r = resumenGym(fechas, volumenTotalKg = 1234.0, hoy = hoy)
+        assertEquals(7, r.sesionesTotales)
+        assertEquals(7.0 / 3, r.promedioSemanal, 1e-9)
+        assertEquals(1234.0, r.volumenTotalKg, 0.0)
+    }
+
+    @Test
+    fun resumen_sinSesiones() {
+        val r = resumenGym(emptyList(), 0.0, hoy)
+        assertEquals(0, r.sesionesTotales)
+        assertEquals(0.0, r.promedioSemanal, 0.0)
+        assertTrue(r.logros.none { it.conseguido })
+    }
+
+    @Test
+    fun logros_porSesionesYSemanas() {
+        // 4 semanas seguidas de 3 = 12 sesiones: logra 10 sesiones y 4 semanas.
+        val fechas = (0L..3L).flatMap { semana(it, 0, 2, 4) }
+        val conseguidos = resumenGym(fechas, 0.0, hoy).logros.filter { it.conseguido }.map { it.titulo }
+        assertEquals(listOf("10 sesiones", "4 sem. seguidas"), conseguidos)
+    }
+
+    @Test
+    fun proximoLogro_esElMasCercano() {
+        // 12 sesiones (48% de 25) y racha actual 4 (50% de 8): gana el de semanas.
+        val fechas = (0L..3L).flatMap { semana(it, 0, 2, 4) }
+        val proximo = resumenGym(fechas, 0.0, hoy).proximoLogro!!
+        assertEquals("8 sem. seguidas", proximo.titulo)
+        assertEquals(4, proximo.faltan)
+    }
+
+    @Test
+    fun formatearVolumen_kgToneladasYLibras() {
+        assertEquals("850 kg", formatearVolumen(850.0, UnidadPeso.KG))
+        assertEquals("38,4 t", formatearVolumen(38_420.0, UnidadPeso.KG))
+        assertEquals("2.205 lb", formatearVolumen(1000.0, UnidadPeso.LB))
     }
 }

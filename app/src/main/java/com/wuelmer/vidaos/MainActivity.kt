@@ -47,6 +47,7 @@ import com.wuelmer.vidaos.ui.categorias.CategoriasRoute
 import com.wuelmer.vidaos.ui.configuracion.ConfiguracionRoute
 import com.wuelmer.vidaos.ui.detalle.DetalleMovimientoRoute
 import com.wuelmer.vidaos.ui.gym.DetalleSesionGymRoute
+import com.wuelmer.vidaos.ui.gym.EvolucionEjercicioRoute
 import com.wuelmer.vidaos.ui.gym.GymRoute
 import com.wuelmer.vidaos.ui.gym.ProgresoGymRoute
 import com.wuelmer.vidaos.ui.gym.SesionGymRoute
@@ -80,6 +81,8 @@ private const val ARG_SESION_ID = "sesionId"
 private const val RUTA_GYM_SESION = "gym_sesion/{$ARG_DIA_ID}?$ARG_SESION_ID={$ARG_SESION_ID}"
 private const val SIN_SESION = -1L
 private const val RUTA_GYM_DETALLE = "gym_detalle/{$ARG_SESION_ID}"
+private const val ARG_EJERCICIO_ID = "ejercicioId"
+private const val RUTA_GYM_EJERCICIO = "gym_ejercicio/{$ARG_EJERCICIO_ID}"
 private const val RUTA_CONFIGURACION = "configuracion"
 
 class MainActivity : ComponentActivity() {
@@ -204,7 +207,10 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                     route = Modulo.GYM.ruta
                 ) {
                     composable(Pestana.GYM_PROGRESO.ruta) {
-                        ProgresoGymRoute(onSesionClick = { id -> navController.navigate("gym_detalle/$id") })
+                        ProgresoGymRoute(
+                            onSesionClick = { id -> navController.navigate("gym_detalle/$id") },
+                            onEjercicioClick = { id -> navController.navigate("gym_ejercicio/$id") }
+                        )
                     }
                     composable(Pestana.GYM_SESIONES.ruta) {
                         GymRoute(
@@ -220,7 +226,18 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                         DetalleSesionGymRoute(
                             sesionId = sesionId,
                             onBackClick = { navController.popBackStack() },
-                            onEditarClick = { diaId -> navController.navigate("gym_sesion/$diaId?$ARG_SESION_ID=$sesionId") }
+                            onEditarClick = { diaId -> navController.navigate("gym_sesion/$diaId?$ARG_SESION_ID=$sesionId") },
+                            onEjercicioClick = { id -> navController.navigate("gym_ejercicio/$id") }
+                        )
+                    }
+                    composable(
+                        route = RUTA_GYM_EJERCICIO,
+                        arguments = listOf(navArgument(ARG_EJERCICIO_ID) { type = NavType.LongType })
+                    ) { entry ->
+                        EvolucionEjercicioRoute(
+                            ejercicioId = entry.arguments?.getLong(ARG_EJERCICIO_ID) ?: 0L,
+                            onBackClick = { navController.popBackStack() },
+                            onSesionClick = { id -> navController.navigate("gym_detalle/$id") }
                         )
                     }
                     composable(
