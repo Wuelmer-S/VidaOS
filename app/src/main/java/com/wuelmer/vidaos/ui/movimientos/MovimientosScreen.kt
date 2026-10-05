@@ -84,7 +84,11 @@ fun MovimientosScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        TotalDelMesCard(mesFormateado = mesFormateado, total = uiState.totalGastadoMes)
+        TotalDelMesCard(
+            mesFormateado = mesFormateado,
+            total = uiState.totalGastadoMes,
+            totalCredito = uiState.gastosPorOrigen.firstOrNull { it.origen == OrigenPago.CREDITO }?.total ?: 0L
+        )
 
         GraficoGastosPorCategoriaCard(
             gastos = uiState.gastosPorCategoria,
@@ -144,8 +148,9 @@ fun MovimientosScreen(
     }
 }
 
+// Bajo el total, en chico, lo gastado con crédito este mes: para ir viendo cuánto se va a tener que pagar.
 @Composable
-private fun TotalDelMesCard(mesFormateado: String, total: Long) {
+private fun TotalDelMesCard(mesFormateado: String, total: Long, totalCredito: Long) {
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -162,6 +167,11 @@ private fun TotalDelMesCard(mesFormateado: String, total: Long) {
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Medium,
                 color = ColorGasto
+            )
+            Text(
+                text = "💳 Con crédito: ${formatearMonto(totalCredito)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextoSuave
             )
         }
     }
