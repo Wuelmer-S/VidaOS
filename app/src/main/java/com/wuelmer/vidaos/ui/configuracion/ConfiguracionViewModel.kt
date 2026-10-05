@@ -7,6 +7,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
+import com.wuelmer.vidaos.avisos.AvisosReceiver
+import com.wuelmer.vidaos.data.HORA_AVISOS_MOTO_DEFECTO
+import com.wuelmer.vidaos.data.HORA_RECORDATORIO_GASTOS_DEFECTO
 import com.wuelmer.vidaos.data.META_SEMANAL_DEFECTO
 import com.wuelmer.vidaos.data.PreferenciasRepository
 import com.wuelmer.vidaos.data.RespaldoRepository
@@ -28,12 +31,18 @@ data class ConfiguracionUiState(
     val tema: Tema = Tema.SISTEMA,
     val modulosOcultos: Set<String> = emptySet(),
     val unidadPeso: UnidadPeso = UnidadPeso.KG,
-    val metaSemanal: Int = META_SEMANAL_DEFECTO
+    val metaSemanal: Int = META_SEMANAL_DEFECTO,
+    val avisosMoto: Boolean = true,
+    val horaAvisosMoto: Int = HORA_AVISOS_MOTO_DEFECTO,
+    val recordatorioGastos: Boolean = true,
+    val horaRecordatorioGastos: Int = HORA_RECORDATORIO_GASTOS_DEFECTO
 )
 
 class ConfiguracionViewModel(
     private val preferencias: PreferenciasRepository,
-    private val respaldo: RespaldoRepository
+    private val respaldo: RespaldoRepository,
+    // Corre la revisión de avisos en el momento (botón "Revisar ahora").
+    private val revisarAvisos: suspend () -> Unit
 ) : ViewModel() {
 
     // Resultado de la última operación de respaldo, para mostrarlo en pantalla.
@@ -50,7 +59,11 @@ class ConfiguracionViewModel(
                 tema = it.tema,
                 modulosOcultos = it.modulosOcultos,
                 unidadPeso = it.unidadPeso,
-                metaSemanal = it.metaSemanal
+                metaSemanal = it.metaSemanal,
+                avisosMoto = it.avisosMoto,
+                horaAvisosMoto = it.horaAvisosMoto,
+                recordatorioGastos = it.recordatorioGastos,
+                horaRecordatorioGastos = it.horaRecordatorioGastos
             )
         }
         .stateIn(
@@ -69,6 +82,27 @@ class ConfiguracionViewModel(
 
     fun onUnidadPesoChange(unidad: UnidadPeso) {
         viewModelScope.launch { preferencias.setUnidadPeso(unidad) }
+    }
+
+    // Al cambiar, VidaOSApplication reprograma las alarmas sola (escucha las preferencias).
+    fun onAvisosMotoChange(activos: Boolean) {
+        viewModelScope.launch { preferencias.setAvisosMoto(activos) }
+    }
+
+    fun onHoraAvisosMotoChange(minutos: Int) {
+        viewModelScope.launch { preferencias.setHoraAvisosMoto(minutos) }
+    }
+
+    fun onRecordatorioGastosChange(activo: Boolean) {
+        viewModelScope.launch { preferencias.setRecordatorioGastos(activo) }
+    }
+
+    fun onHoraRecordatorioGastosChange(minutos: Int) {
+        viewModelScope.launch { preferencias.setHoraRecordatorioGastos(minutos) }
+    }
+
+    fun revisarAvisosAhora() {
+        viewModelScope.launch { revisarAvisos() }
     }
 
     fun exportarRespaldo(destino: Uri) = operarRespaldo {
@@ -105,7 +139,14 @@ class ConfiguracionViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as VidaOSApplication
-                ConfiguracionViewModel(preferencias = application.preferencias, respaldo = application.respaldo)
+                ConfiguracionViewModel(
+                    preferencias = application.preferencias,
+                    respaldo = application.respaldo,
+                    revisarAvisos = {
+                        AvisosReceiver.revisarMoto(application)
+                        AvisosReceiver.revisarGastos(application)
+                    }
+                )
             }
         }
     }

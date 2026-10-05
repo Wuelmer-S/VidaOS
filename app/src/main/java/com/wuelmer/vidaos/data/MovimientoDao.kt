@@ -74,6 +74,10 @@ interface MovimientoDao {
     )
     fun getGastosPorOrigenEntreFechas(desde: LocalDate, hasta: LocalDate): Flow<List<GastoPorOrigen>>
 
+    // Para el recordatorio de la noche: si ya anotó algún gasto hoy, no se le molesta.
+    @Query("SELECT COUNT(*) FROM movimientos WHERE tipo = 'GASTO' AND fecha = :fecha")
+    suspend fun contarGastosDelDia(fecha: LocalDate): Int
+
     @Query("SELECT COUNT(*) FROM movimientos WHERE categoriaId = :categoriaId")
     suspend fun contarPorCategoria(categoriaId: Long): Int
 }

@@ -1,10 +1,16 @@
 package com.wuelmer.vidaos
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -28,8 +34,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -42,6 +50,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.wuelmer.vidaos.avisos.Notificador
 import com.wuelmer.vidaos.data.Tema
 import com.wuelmer.vidaos.ui.categorias.CategoriasRoute
 import com.wuelmer.vidaos.ui.configuracion.ConfiguracionRoute
@@ -97,12 +106,31 @@ private const val RUTA_MOTO_KM = "moto_km"
 private const val ARG_TRABAJO_ID = "trabajoId"
 private const val RUTA_MOTO_FICHA = "moto_ficha/{$ARG_TRABAJO_ID}"
 
+// Pantalla que pidió abrir una notificación (p. ej. el detalle de una mantención).
+private data class DestinoNotificacion(val modulo: Modulo, val ruta: String?)
+
+private fun destinoDe(intent: Intent?): DestinoNotificacion? {
+    val modulo = intent?.getStringExtra(Notificador.EXTRA_MODULO)
+        ?.let { nombre -> Modulo.entries.firstOrNull { it.name == nombre } } ?: return null
+    return DestinoNotificacion(modulo, intent.getStringExtra(Notificador.EXTRA_RUTA))
+}
+
 class MainActivity : ComponentActivity() {
+    private val destinoNotificacion = mutableStateOf<DestinoNotificacion?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        destinoNotificacion.value = destinoDe(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Al recrearse (p. ej. girar la pantalla) no se vuelve a abrir la pantalla de la notificación.
+        if (savedInstanceState == null) destinoNotificacion.value = destinoDe(intent)
         enableEdgeToEdge()
         val preferencias = (application as VidaOSApplication).preferencias
         setContent {
+            PedirPermisoNotificaciones()
             // Hasta leer las preferencias no se dibuja nada, para no parpadear con el tema o los módulos equivocados.
             val prefs by preferencias.preferencias.collectAsState(initial = null)
             val prefsActuales = prefs ?: return@setContent
@@ -125,7 +153,11 @@ class MainActivity : ComponentActivity() {
                 val modulos = modulosVisibles(prefsActuales.modulosOcultos)
                 // El módulo de inicio es el primero visible; si cambia, se rearma la navegación desde él.
                 key(modulos.first()) {
-                    VidaOSApp(modulos = modulos)
+                    VidaOSApp(
+                        modulos = modulos,
+                        destino = destinoNotificacion.value,
+                        onDestinoUsado = { destinoNotificacion.value = null }
+                    )
                 }
             }
         }
@@ -133,7 +165,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun VidaOSApp(modulos: List<Modulo>) {
+private fun VidaOSApp(
+    modulos: List<Modulo>,
+    destino: DestinoNotificacion?,
+    onDestinoUsado: () -> Unit
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destinoActual = backStackEntry?.destination
@@ -148,6 +184,15 @@ private fun VidaOSApp(modulos: List<Modulo>) {
     // Si se ocultó el módulo en el que estaba (p. ej. al volver de Configuración), ir al primero visible.
     LaunchedEffect(moduloActual, modulos) {
         if (moduloActual != null && moduloActual !in modulos) navController.irAModulo(modulos.first())
+    }
+
+    LaunchedEffect(destino) {
+        if (destino == null) return@LaunchedEffect
+        if (destino.modulo in modulos) {
+            navController.irAModulo(destino.modulo)
+            destino.ruta?.let { navController.navigate(it) }
+        }
+        onDestinoUsado()
     }
 
     Scaffold(
@@ -310,6 +355,18 @@ private fun VidaOSApp(modulos: List<Modulo>) {
                 }
             }
         }
+    }
+}
+
+// Android 13+ pide permiso para notificar. Se pregunta al abrir la app; si lo niega, Configuración lo recuerda.
+@Composable
+private fun PedirPermisoNotificaciones() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(Unit) {
+        val permiso = Manifest.permission.POST_NOTIFICATIONS
+        if (context.checkSelfPermission(permiso) != PackageManager.PERMISSION_GRANTED) launcher.launch(permiso)
     }
 }
 
