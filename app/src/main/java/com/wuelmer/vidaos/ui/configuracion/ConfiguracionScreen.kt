@@ -73,6 +73,11 @@ fun ConfiguracionRoute(
         onModuloVisibleChange = viewModel::onModuloVisibleChange,
         onUnidadPesoChange = viewModel::onUnidadPesoChange,
         onMetaSemanalChange = viewModel::onMetaSemanalChange,
+        onAvisosMotoChange = viewModel::onAvisosMotoChange,
+        onHoraAvisosMotoChange = viewModel::onHoraAvisosMotoChange,
+        onRecordatorioGastosChange = viewModel::onRecordatorioGastosChange,
+        onHoraRecordatorioGastosChange = viewModel::onHoraRecordatorioGastosChange,
+        onRevisarAvisos = viewModel::revisarAvisosAhora,
         modifier = modifier
     )
 }
@@ -91,6 +96,11 @@ fun ConfiguracionScreen(
     onModuloVisibleChange: (Modulo, Boolean) -> Unit,
     onUnidadPesoChange: (UnidadPeso) -> Unit,
     onMetaSemanalChange: (Int) -> Unit,
+    onAvisosMotoChange: (Boolean) -> Unit,
+    onHoraAvisosMotoChange: (Int) -> Unit,
+    onRecordatorioGastosChange: (Boolean) -> Unit,
+    onHoraRecordatorioGastosChange: (Int) -> Unit,
+    onRevisarAvisos: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var respaldoARestaurar by remember { mutableStateOf<Uri?>(null) }
@@ -235,6 +245,15 @@ fun ConfiguracionScreen(
                     ) { Text("+", style = MaterialTheme.typography.titleLarge) }
                 }
             }
+
+            SeccionAvisos(
+                uiState = uiState,
+                onAvisosMotoChange = onAvisosMotoChange,
+                onHoraAvisosMotoChange = onHoraAvisosMotoChange,
+                onRecordatorioGastosChange = onRecordatorioGastosChange,
+                onHoraRecordatorioGastosChange = onHoraRecordatorioGastosChange,
+                onRevisarAhora = onRevisarAvisos
+            )
 
             Text(
                 text = "Respaldo",

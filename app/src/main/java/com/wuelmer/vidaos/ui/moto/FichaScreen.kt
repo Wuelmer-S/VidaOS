@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -22,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -107,8 +111,11 @@ class FichaViewModel(private val trabajoId: Long, private val motoDao: MotoDao) 
         }
     }
 
-    fun marcarVerificado(ajuste: AjusteTrabajo) {
-        viewModelScope.launch { motoDao.updateAjuste(ajuste.copy(verificado = true)) }
+    // La medida que el usuario usó de verdad: queda como verificada y reemplaza la pista de foros.
+    fun guardarMedida(ajuste: AjusteTrabajo, medida: String) {
+        val limpia = normalizarMedida(medida)
+        if (limpia.isEmpty()) return
+        viewModelScope.launch { motoDao.updateAjuste(ajuste.copy(llave = limpia, verificado = true)) }
     }
 
     fun eliminarAjuste(ajuste: AjusteTrabajo) {
@@ -139,7 +146,7 @@ fun FichaRoute(
         onActualizarTrabajo = viewModel::actualizarTrabajo,
         onEliminarTrabajo = { viewModel.eliminarTrabajo(onEliminado = onBackClick) },
         onGuardarAjuste = viewModel::guardarAjuste,
-        onMarcarVerificado = viewModel::marcarVerificado,
+        onGuardarMedida = viewModel::guardarMedida,
         onEliminarAjuste = viewModel::eliminarAjuste,
         modifier = modifier
     )
@@ -162,7 +169,7 @@ fun FichaScreen(
     onActualizarTrabajo: (String, String, String, String) -> Unit,
     onEliminarTrabajo: () -> Unit,
     onGuardarAjuste: (AjusteTrabajo?, String, String?, Int?, Boolean) -> Unit,
-    onMarcarVerificado: (AjusteTrabajo) -> Unit,
+    onGuardarMedida: (AjusteTrabajo, String) -> Unit,
     onEliminarAjuste: (AjusteTrabajo) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -215,13 +222,13 @@ fun FichaScreen(
             TarjetaAjustes(
                 ajustes = uiState.ajustes,
                 onAjusteClick = { edicion = EdicionFicha.Ajuste(it) },
-                onMarcarVerificado = onMarcarVerificado,
+                onGuardarMedida = onGuardarMedida,
                 onNuevoClick = { edicion = EdicionFicha.NuevoAjuste }
             )
             val materiales = lineas(trabajo.materiales)
             if (materiales.isNotEmpty()) TarjetaMateriales(materiales)
             val pasos = lineas(trabajo.pasos)
-            if (pasos.isNotEmpty()) TarjetaPasos(trabajo.id, pasos)
+            if (pasos.isNotEmpty()) TarjetaPasos(trabajo.id, pasos, uiState.ajustes)
         }
     }
 
@@ -293,7 +300,7 @@ private fun Tarjeta(titulo: String, contenido: @Composable () -> Unit) {
 private fun TarjetaAjustes(
     ajustes: List<AjusteTrabajo>,
     onAjusteClick: (AjusteTrabajo) -> Unit,
-    onMarcarVerificado: (AjusteTrabajo) -> Unit,
+    onGuardarMedida: (AjusteTrabajo, String) -> Unit,
     onNuevoClick: () -> Unit
 ) {
     Tarjeta("🔧 LLAVES Y TORQUES") {
@@ -308,36 +315,50 @@ private fun TarjetaAjustes(
         ajustes.forEachIndexed { i, ajuste ->
             if (i > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             val pendiente = porConfirmar(ajuste)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onAjusteClick(ajuste) }
                     .padding(vertical = 12.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(ajuste.parte, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                    Text(describirAjuste(ajuste), style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        text = if (pendiente) "⚠ Por confirmar" else "✓ Verificado",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background((if (pendiente) ColorDestacado else ColorIngreso).copy(alpha = 0.3f))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    )
-                }
-                // Con medida escrita, un toque basta para confirmarla. Sin medida hay que escribirla primero.
-                if (pendiente && !ajuste.llave.isNullOrBlank()) {
-                    TextButton(onClick = { onMarcarVerificado(ajuste) }) { Text("Lo verifiqué") }
-                }
+                Text(ajuste.parte, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Text(describirAjuste(ajuste), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = if (pendiente) "⚠ Medida por anotar" else "✓ Medida tuya",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background((if (pendiente) ColorDestacado else ColorIngreso).copy(alpha = 0.3f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+                if (pendiente) CampoMedida(ajuste, onGuardar = { onGuardarMedida(ajuste, it) })
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
         TextButton(onClick = onNuevoClick, modifier = Modifier.padding(top = 4.dp)) { Text("+ Agregar perno") }
+    }
+}
+
+// El usuario escribe la llave o dado que usó en su moto. La medida de foros queda solo como pista.
+@Composable
+private fun CampoMedida(ajuste: AjusteTrabajo, onGuardar: (String) -> Unit) {
+    var medida by rememberSaveable(ajuste.id) { mutableStateOf("") }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+        OutlinedTextField(
+            value = medida,
+            onValueChange = { medida = it.take(40) },
+            label = { Text("Ingresa la medida que usaste") },
+            placeholder = { Text("Ej.: 17") },
+            supportingText = referenciaLlave(ajuste)?.let { ref -> { Text("Referencia (sin confirmar): $ref") } },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (medida.isNotBlank()) onGuardar(medida) }),
+            modifier = Modifier.weight(1f)
+        )
+        TextButton(onClick = { onGuardar(medida) }, enabled = medida.isNotBlank()) { Text("Guardar") }
     }
 }
 
@@ -352,7 +373,7 @@ private fun TarjetaMateriales(materiales: List<String>) {
 
 // Checklist para ir marcando mientras se trabaja. No se guarda en la base: solo dura mientras la pantalla está abierta.
 @Composable
-private fun TarjetaPasos(trabajoId: Long, pasos: List<String>) {
+private fun TarjetaPasos(trabajoId: Long, pasos: List<String>, ajustes: List<AjusteTrabajo>) {
     var hechos by rememberSaveable(trabajoId) { mutableStateOf(setOf<Int>()) }
     Tarjeta("✅ PASOS") {
         pasos.forEachIndexed { i, paso ->
@@ -364,12 +385,22 @@ private fun TarjetaPasos(trabajoId: Long, pasos: List<String>) {
                     .clickable { hechos = if (hecho) hechos - i else hechos + i }
             ) {
                 Checkbox(checked = hecho, onCheckedChange = { hechos = if (it) hechos + i else hechos - i })
-                Text(
-                    text = "${i + 1}. $paso",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (hecho) TextoSuave else MaterialTheme.colorScheme.onSurface,
-                    textDecoration = if (hecho) TextDecoration.LineThrough else null
-                )
+                Column {
+                    Text(
+                        text = "${i + 1}. $paso",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (hecho) TextoSuave else MaterialTheme.colorScheme.onSurface,
+                        textDecoration = if (hecho) TextDecoration.LineThrough else null
+                    )
+                    notaPaso(paso, ajustes)?.let { nota ->
+                        Text(
+                            text = nota,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = TextoSuave
+                        )
+                    }
+                }
             }
         }
         if (hechos.isNotEmpty()) {
