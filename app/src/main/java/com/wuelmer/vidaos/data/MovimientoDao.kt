@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
@@ -32,8 +33,14 @@ interface MovimientoDao {
     @Insert
     suspend fun insert(movimiento: Movimiento): Long
 
+    @Update
+    suspend fun update(movimiento: Movimiento)
+
     @Delete
     suspend fun delete(movimiento: Movimiento)
+
+    @Query("SELECT * FROM movimientos WHERE id = :id")
+    suspend fun getPorId(id: Long): Movimiento?
 
     @Query("SELECT * FROM movimientos ORDER BY fecha DESC, id DESC")
     fun getAll(): Flow<List<Movimiento>>
