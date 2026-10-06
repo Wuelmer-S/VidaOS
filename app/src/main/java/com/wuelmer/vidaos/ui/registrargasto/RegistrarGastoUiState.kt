@@ -14,12 +14,19 @@ data class RegistrarGastoUiState(
     val origen: OrigenPago = OrigenPago.DEBITO,
     val tipo: TipoMovimiento = TipoMovimiento.GASTO,
     val categoriaId: Long? = null,
+    // Solo cuenta en gastos con crédito; en lo demás se guarda 1.
+    val cuotas: Int = 1,
     val categorias: List<Categoria> = emptyList(),
     val errorMonto: Boolean = false,
     val guardadoExitoso: Boolean = false,
     // true = el formulario está editando un movimiento que ya existe.
     val editando: Boolean = false
-)
+) {
+    val admiteCuotas: Boolean get() = tipo == TipoMovimiento.GASTO && origen == OrigenPago.CREDITO
+    val cuotasAGuardar: Int get() = if (admiteCuotas) cuotas else 1
+}
+
+const val MAX_CUOTAS = 48
 
 // Rellena el formulario con un movimiento guardado, para editarlo.
 fun RegistrarGastoUiState.conMovimiento(movimiento: Movimiento): RegistrarGastoUiState = copy(
@@ -29,6 +36,7 @@ fun RegistrarGastoUiState.conMovimiento(movimiento: Movimiento): RegistrarGastoU
     origen = movimiento.origen,
     tipo = movimiento.tipo,
     categoriaId = movimiento.categoriaId,
+    cuotas = movimiento.cuotas,
     errorMonto = false,
     editando = true
 )
@@ -40,7 +48,8 @@ fun Movimiento.editadoCon(estado: RegistrarGastoUiState, monto: Long, categoriaI
     descripcion = estado.descripcion,
     categoriaId = categoriaId,
     origen = estado.origen,
-    tipo = estado.tipo
+    tipo = estado.tipo,
+    cuotas = estado.cuotasAGuardar
 )
 
 fun TipoMovimiento.categoriaCorrespondiente(): TipoCategoria? = when (this) {

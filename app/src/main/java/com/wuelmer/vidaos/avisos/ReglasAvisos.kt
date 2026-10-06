@@ -1,10 +1,14 @@
 package com.wuelmer.vidaos.avisos
 
+import com.wuelmer.vidaos.data.EstadoCuenta
 import com.wuelmer.vidaos.ui.moto.EstadoMantencion
 import com.wuelmer.vidaos.ui.moto.describirRestante
+import com.wuelmer.vidaos.ui.movimientos.formatearMonto
+import com.wuelmer.vidaos.ui.tarjeta.EstadoPago
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 // Niveles de aviso de una mantención, de menor a mayor urgencia.
@@ -92,3 +96,22 @@ fun proximaEjecucion(ahora: LocalDateTime, minutosDelDia: Int): LocalDateTime {
 // 450 → "07:30"
 fun formatearHora(minutosDelDia: Int): String =
     "%02d:%02d".format(minutosDelDia / 60, minutosDelDia % 60)
+
+const val DIAS_AVISO_PAGO_TARJETA = 3L
+
+// Días que faltan para "pagar hasta" si toca avisar: factura sin pagar (o pagada en parte) y quedan 3 días o menos.
+fun diasAvisoPagoTarjeta(pago: EstadoPago): Long? = when (pago) {
+    is EstadoPago.Pendiente -> pago.dias
+    is EstadoPago.Parcial -> pago.dias
+    else -> null
+}?.takeIf { it in 0..DIAS_AVISO_PAGO_TARJETA }
+
+fun textoAvisoPagoTarjeta(estado: EstadoCuenta, pago: EstadoPago, dias: Long): String {
+    val cuando = when (dias) {
+        0L -> "Vence hoy"
+        1L -> "Vence mañana"
+        else -> "Vence en $dias días"
+    } + " (${estado.pagarHasta.format(DateTimeFormatter.ofPattern("dd/MM"))})"
+    val falta = if (pago is EstadoPago.Parcial) pago.falta else estado.totalFacturado
+    return "$cuando. Te falta pagar ${formatearMonto(falta)} (mínimo ${formatearMonto(estado.montoMinimo)})."
+}

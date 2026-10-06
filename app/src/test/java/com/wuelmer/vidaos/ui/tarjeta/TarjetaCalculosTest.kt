@@ -131,4 +131,77 @@ class TarjetaCalculosTest {
         assertEquals("Compras internacionales (en dólares)", nombreCargo("TRASPASO DEUDA INTERNACIONAL"))
         assertEquals("Seguro desgravamen", nombreCargo("SEGURO DESGRAVAMEN"))
     }
+
+    private fun cuota(fecha: LocalDate, total: Long, actual: Int, de: Int, desc: String) =
+        OperacionTarjeta(
+            estadoId = 1, fecha = fecha, descripcion = desc, tipo = TipoOperacionTarjeta.CUOTA, montoOperacion = total,
+            cuotaActual = actual, cuotasTotal = de, valorCuota = total / de, orden = 0
+        )
+
+    @Test
+    fun cuotasDelPeriodo_sigueLaFacturaYSumaLasAnotadas() {
+        // Factura: compra de 90.000 en 3 (va en la 1/3) y otra de 30.000 en su última cuota (no sigue).
+        val ops = listOf(
+            cuota(LocalDate.of(2026, 3, 1), 90_000, 1, 3, "TIENDA UNO"),
+            cuota(LocalDate.of(2026, 1, 1), 30_000, 3, 3, "TIENDA DOS")
+        )
+        val movs = listOf(
+            mov(LocalDate.of(2026, 3, 25), 60_000, TipoMovimiento.GASTO).copy(cuotas = 2, descripcion = "zapatillas"),
+            mov(LocalDate.of(2026, 3, 10), 40_000, TipoMovimiento.GASTO).copy(cuotas = 2),  // ya venía en la factura
+            mov(LocalDate.of(2026, 3, 26), 5_000, TipoMovimiento.GASTO)                     // sin cuotas
+        )
+        val c = cuotasDelPeriodo(estado, ops, movs, LocalDate.of(2026, 3, 28))
+        assertEquals(listOf("Tienda uno", "zapatillas"), c.map { it.descripcion })
+        assertEquals(2, c[0].numero)
+        // La cuota de la factura se cuadra con lo que vence el mes siguiente (30.000).
+        assertEquals(30_000L, c[0].valor)
+        assertEquals(1, c[1].numero)
+        assertEquals(30_000L, c[1].valor)
+        assertEquals(1, c[1].quedan)
+    }
+
+    @Test
+    fun cuotasDelPeriodo_cuadraElRedondeoDelBanco() {
+        val ops = listOf(cuota(LocalDate.of(2026, 2, 1), 70_000, 2, 3, "TALLER"))  // valorCuota 23.333
+        val c = cuotasDelPeriodo(estado.copy(vencimientos = "23334,0,0,0"), ops, emptyList(), LocalDate.of(2026, 3, 28))
+        assertEquals(23_334L, c.single().valor)
+        assertEquals(3, c.single().numero)
+    }
+
+    @Test
+    fun cuotasDelPeriodo_sinFacturaCuentaPorMeses() {
+        val movs = listOf(
+            mov(LocalDate.of(2026, 1, 15), 90_000, TipoMovimiento.GASTO).copy(cuotas = 3),
+            mov(LocalDate.of(2025, 12, 15), 20_000, TipoMovimiento.GASTO).copy(cuotas = 2)  // ya terminó
+        )
+        val c = cuotasDelPeriodo(null, emptyList(), movs, LocalDate.of(2026, 3, 5))
+        assertEquals(3, c.single().numero)
+        assertEquals(30_000L, c.single().valor)
+    }
+
+    @Test
+    fun periodoActual_lasComprasEnCuotasSoloSumanLaCuota() {
+        val movs = listOf(
+            mov(LocalDate.of(2026, 3, 21), 10_000, TipoMovimiento.GASTO),
+            mov(LocalDate.of(2026, 3, 22), 90_000, TipoMovimiento.GASTO).copy(cuotas = 3)
+        )
+        val p = periodoActual(estado, emptyList(), movs, LocalDate.of(2026, 3, 28))
+        assertEquals(10_000L, p.gastosCredito)
+        assertEquals(60_000L, p.cuotas)  // 30.000 de la factura + 30.000 de la compra nueva
+    }
+
+    @Test
+    fun meses_sumanLasCuotasAnotadas() {
+        val movs = listOf(mov(LocalDate.of(2026, 3, 22), 90_000, TipoMovimiento.GASTO).copy(cuotas = 3))
+        assertEquals(
+            listOf("abr" to 60_000L, "may" to 45_000L, "jun" to 30_000L, "jul" to 0L),
+            mesesVencimientos(estado, movs)
+        )
+    }
+
+    @Test
+    fun valorCuota_redondeaAlPeso() {
+        assertEquals(23_333L, valorCuota(70_000, 3))
+        assertEquals(30_000L, valorCuota(90_000, 3))
+    }
 }

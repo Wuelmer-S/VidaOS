@@ -54,4 +54,14 @@ class EditarMovimientoTest {
             editado
         )
     }
+
+    @Test
+    fun cuotas_soloSeGuardanEnGastosConCredito() {
+        val enCuotas = RegistrarGastoUiState().conMovimiento(original.copy(cuotas = 3))
+        assertEquals(3, enCuotas.cuotas)
+        assertEquals(3, original.editadoCon(enCuotas, monto = 90_000, categoriaId = 1).cuotas)
+        // Si pasa a débito, se guarda sin cuotas.
+        val debito = enCuotas.copy(origen = OrigenPago.DEBITO)
+        assertEquals(1, original.editadoCon(debito, monto = 90_000, categoriaId = 1).cuotas)
+    }
 }

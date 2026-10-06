@@ -26,7 +26,8 @@ data class TarjetaUiState(
     val ultima: FacturaResumen? = null,
     val periodo: PeriodoActual? = null,
     val cupoDisponible: Long = 0,
-    val cuotas: List<OperacionTarjeta> = emptyList(),
+    // Cuotas que entran en la próxima factura.
+    val cuotas: List<CuotaPeriodo> = emptyList(),
     val meses: List<Pair<String, Long>> = emptyList(),
     val cargos: List<OperacionTarjeta> = emptyList(),
     val facturas: List<FacturaResumen> = emptyList()
@@ -56,10 +57,10 @@ class TarjetaViewModel(
         TarjetaUiState(
             cargando = false,
             ultima = ultima,
-            periodo = ultima?.let { periodoActual(it.estado, opsUltima, movimientos) },
+            periodo = ultima?.let { periodoActual(it.estado, opsUltima, movimientos, hoy) },
             cupoDisponible = ultima?.let { cupoDisponibleEstimado(it.estado, movimientos) } ?: 0,
-            cuotas = opsUltima.filter { it.tipo == TipoOperacionTarjeta.CUOTA },
-            meses = ultima?.let { mesesVencimientos(it.estado) }.orEmpty(),
+            cuotas = ultima?.let { cuotasDelPeriodo(it.estado, opsUltima, movimientos, hoy) }.orEmpty(),
+            meses = ultima?.let { mesesVencimientos(it.estado, movimientos) }.orEmpty(),
             cargos = opsUltima.filter { it.tipo == TipoOperacionTarjeta.CARGO },
             facturas = facturas
         )

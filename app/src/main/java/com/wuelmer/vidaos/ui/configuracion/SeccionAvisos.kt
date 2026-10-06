@@ -40,7 +40,7 @@ import com.wuelmer.vidaos.ui.theme.ColorGasto
 import com.wuelmer.vidaos.ui.theme.TextoSuave
 
 // Qué hora se está editando en el selector.
-private enum class HoraAviso { MOTO, GASTOS }
+private enum class HoraAviso { MOTO, GASTOS, TARJETA }
 
 // Avisos de la moto (mañana) y recordatorio de gastos (noche). Solo aparecen los de módulos visibles.
 @Composable
@@ -50,6 +50,8 @@ fun SeccionAvisos(
     onHoraAvisosMotoChange: (Int) -> Unit,
     onRecordatorioGastosChange: (Boolean) -> Unit,
     onHoraRecordatorioGastosChange: (Int) -> Unit,
+    onAvisoPagoTarjetaChange: (Boolean) -> Unit,
+    onHoraAvisoPagoTarjetaChange: (Int) -> Unit,
     onRevisarAhora: () -> Unit
 ) {
     val visibles = modulosVisibles(uiState.modulosOcultos)
@@ -95,6 +97,16 @@ fun SeccionAvisos(
                     onActivoChange = onRecordatorioGastosChange,
                     onHoraClick = { editando = HoraAviso.GASTOS }
                 )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                OpcionAviso(
+                    titulo = "Pago de la tarjeta",
+                    descripcion = "Los 3 días antes de la fecha de pago, si la factura no está pagada",
+                    activo = uiState.avisoPagoTarjeta,
+                    hora = uiState.horaAvisoPagoTarjeta,
+                    habilitado = !uiState.cargando,
+                    onActivoChange = onAvisoPagoTarjetaChange,
+                    onHoraClick = { editando = HoraAviso.TARJETA }
+                )
             }
         }
     }
@@ -126,6 +138,15 @@ fun SeccionAvisos(
             onDismiss = { editando = null },
             onGuardar = {
                 onHoraRecordatorioGastosChange(it)
+                editando = null
+            }
+        )
+        HoraAviso.TARJETA -> DialogoHora(
+            titulo = "Hora del aviso de pago de la tarjeta",
+            inicial = uiState.horaAvisoPagoTarjeta,
+            onDismiss = { editando = null },
+            onGuardar = {
+                onHoraAvisoPagoTarjetaChange(it)
                 editando = null
             }
         )

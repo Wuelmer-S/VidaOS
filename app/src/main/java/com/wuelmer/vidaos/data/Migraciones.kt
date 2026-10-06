@@ -64,3 +64,10 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_operaciones_tarjeta_estadoId` ON `operaciones_tarjeta` (`estadoId`)")
     }
 }
+
+// v7: número de cuotas de cada movimiento (compras con crédito en cuotas). Los existentes quedan en 1.
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `movimientos` ADD COLUMN `cuotas` INTEGER NOT NULL DEFAULT 1")
+    }
+}

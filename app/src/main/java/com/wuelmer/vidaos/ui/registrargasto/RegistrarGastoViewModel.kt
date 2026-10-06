@@ -84,6 +84,10 @@ class RegistrarGastoViewModel(
         }
     }
 
+    fun onCuotasChange(cuotas: Int) {
+        _uiState.update { it.copy(cuotas = cuotas.coerceIn(1, MAX_CUOTAS)) }
+    }
+
     fun onCategoriaChange(categoriaId: Long) {
         _uiState.update { it.copy(categoriaId = categoriaId) }
     }
@@ -131,7 +135,8 @@ class RegistrarGastoViewModel(
                     descripcion = estado.descripcion,
                     categoriaId = categoriaId,
                     origen = estado.origen,
-                    tipo = estado.tipo
+                    tipo = estado.tipo,
+                    cuotas = estado.cuotasAGuardar
                 )
             )
             _uiState.update {

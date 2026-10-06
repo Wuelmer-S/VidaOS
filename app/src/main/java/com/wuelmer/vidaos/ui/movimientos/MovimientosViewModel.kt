@@ -8,7 +8,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
 import com.wuelmer.vidaos.data.CategoriaDao
 import com.wuelmer.vidaos.data.MovimientoDao
+import com.wuelmer.vidaos.data.TarjetaDao
 import com.wuelmer.vidaos.data.TipoCategoria
+import com.wuelmer.vidaos.ui.tarjeta.cuotasDelPeriodo
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -18,20 +20,33 @@ import java.time.LocalDate
 
 class MovimientosViewModel(
     movimientoDao: MovimientoDao,
+    tarjetaDao: TarjetaDao,
     private val categoriaDao: CategoriaDao
 ) : ViewModel() {
+
+    // estados viene del más nuevo al más viejo.
+    private val cuotas = combine(
+        tarjetaDao.getEstados(),
+        tarjetaDao.getOperaciones(),
+        movimientoDao.getAll()
+    ) { estados, operaciones, movimientos ->
+        val ultimo = estados.firstOrNull()
+        cuotasDelPeriodo(ultimo, operaciones.filter { it.estadoId == ultimo?.id }, movimientos, LocalDate.now())
+    }
 
     val uiState: StateFlow<MovimientosUiState> = combine(
         movimientoDao.getAllConCategoria(),
         movimientoDao.getTotalGastadoEntreFechas(inicioDeMes(), finDeMes()),
         movimientoDao.getGastosPorCategoriaEntreFechas(inicioDeMes(), finDeMes()),
-        movimientoDao.getGastosPorOrigenEntreFechas(inicioDeMes(), finDeMes())
-    ) { movimientos, total, gastosPorCategoria, gastosPorOrigen ->
+        movimientoDao.getGastosPorOrigenEntreFechas(inicioDeMes(), finDeMes()),
+        cuotas
+    ) { movimientos, total, gastosPorCategoria, gastosPorOrigen, cuotas ->
         MovimientosUiState(
             movimientos = movimientos,
             totalGastadoMes = total,
             gastosPorCategoria = gastosPorCategoria,
-            gastosPorOrigen = gastosPorOrigen
+            gastosPorOrigen = gastosPorOrigen,
+            cuotasProximaFactura = cuotas
         )
     }.stateIn(
         scope = viewModelScope,
@@ -59,6 +74,7 @@ class MovimientosViewModel(
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as VidaOSApplication
                 MovimientosViewModel(
                     movimientoDao = application.database.movimientoDao(),
+                    tarjetaDao = application.database.tarjetaDao(),
                     categoriaDao = application.database.categoriaDao()
                 )
             }

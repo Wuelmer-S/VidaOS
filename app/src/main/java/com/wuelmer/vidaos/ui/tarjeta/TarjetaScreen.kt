@@ -311,9 +311,9 @@ private fun TarjetaCupo(estado: EstadoCuenta, disponible: Long) {
 }
 
 @Composable
-private fun TarjetaCuotas(cuotas: List<OperacionTarjeta>, meses: List<Pair<String, Long>>) {
+private fun TarjetaCuotas(cuotas: List<CuotaPeriodo>, meses: List<Pair<String, Long>>) {
     Tarjeta {
-        Etiqueta("Cuotas")
+        Etiqueta("Cuotas en tu próxima factura")
         if (cuotas.isEmpty()) {
             Text("No tienes compras en cuotas.", style = MaterialTheme.typography.bodyMedium, color = TextoSuave, modifier = Modifier.padding(top = 6.dp))
         }
@@ -322,26 +322,28 @@ private fun TarjetaCuotas(cuotas: List<OperacionTarjeta>, meses: List<Pair<Strin
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                 Row {
                     Text(c.descripcion, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text("${formatearMonto(c.valorCuota)}/mes", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text(formatearMonto(c.valor), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(vertical = 6.dp)) {
-                    repeat(c.cuotasTotal) { n ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(if (n < c.cuotaActual) OrigenCreditoColor else MaterialTheme.colorScheme.outline)
-                        )
+                // total = 0: solo se conoce el monto que vence (la factura no traía el detalle).
+                if (c.total > 0) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(vertical = 6.dp)) {
+                        repeat(c.total) { n ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (n < c.numero) OrigenCreditoColor else MaterialTheme.colorScheme.outline)
+                            )
+                        }
                     }
+                    Text(
+                        "Cuota ${c.numero} de ${c.total} · total ${formatearMonto(c.montoCompra)} · " +
+                            if (c.quedan == 0) "última cuota" else "después quedan ${c.quedan}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextoSuave
+                    )
                 }
-                val quedan = c.cuotasTotal - c.cuotaActual
-                Text(
-                    "Cuota ${c.cuotaActual} de ${c.cuotasTotal} · total ${formatearMonto(c.montoOperacion)} · " +
-                        if (quedan == 0) "última cuota" else "quedan $quedan",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextoSuave
-                )
             }
         }
         val conMonto = meses.filter { it.second > 0 }

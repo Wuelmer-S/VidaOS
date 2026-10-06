@@ -7,6 +7,8 @@ import com.wuelmer.vidaos.VidaOSApplication
 import com.wuelmer.vidaos.ui.moto.calcularEstado
 import com.wuelmer.vidaos.ui.navegacion.Modulo
 import com.wuelmer.vidaos.ui.navegacion.modulosVisibles
+import com.wuelmer.vidaos.ui.tarjeta.estadoPago
+import com.wuelmer.vidaos.ui.tarjeta.pagosAnotados
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -24,6 +26,7 @@ class AvisosReceiver : BroadcastReceiver() {
                 when (intent.action) {
                     ProgramadorAvisos.ACCION_MOTO -> revisarMoto(app)
                     ProgramadorAvisos.ACCION_GASTOS -> revisarGastos(app)
+                    ProgramadorAvisos.ACCION_TARJETA -> revisarTarjeta(app)
                 }
                 ProgramadorAvisos.programar(app, horarioAvisos(app.preferencias.preferencias.first()))
             } finally {
@@ -62,6 +65,18 @@ class AvisosReceiver : BroadcastReceiver() {
             val prefs = app.preferencias.preferencias.first()
             if (!prefs.recordatorioGastos || Modulo.FINANZAS !in modulosVisibles(prefs.modulosOcultos)) return
             if (app.database.movimientoDao().contarGastosDelDia(LocalDate.now()) == 0) Notificador.gastos(app)
+        }
+
+        // Factura sin pagar a 3 días o menos de "pagar hasta". Se repite cada día hasta pagarla o que venza.
+        suspend fun revisarTarjeta(app: VidaOSApplication) {
+            val prefs = app.preferencias.preferencias.first()
+            if (!prefs.avisoPagoTarjeta || Modulo.FINANZAS !in modulosVisibles(prefs.modulosOcultos)) return
+            val ultimo = app.database.tarjetaDao().getEstados().first().firstOrNull() ?: return
+            val hoy = LocalDate.now()
+            val movimientos = app.database.movimientoDao().getAll().first()
+            val pago = estadoPago(ultimo, pagosAnotados(movimientos, ultimo, hasta = null), pagadoSegunBanco = null, hoy)
+            val dias = diasAvisoPagoTarjeta(pago) ?: return
+            Notificador.tarjeta(app, textoAvisoPagoTarjeta(ultimo, pago, dias))
         }
     }
 }

@@ -8,6 +8,7 @@ import com.wuelmer.vidaos.data.TipoMovimiento
 import com.wuelmer.vidaos.data.TipoOperacionTarjeta
 import java.time.LocalDate
 import java.time.format.TextStyle
+import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
@@ -66,19 +67,87 @@ data class PeriodoActual(
     val estimado: Long get() = gastosCredito + cuotas + comision
 }
 
+// Una cuota que entra en la próxima factura: de una compra que ya venía en la factura o de una anotada en la app.
+data class CuotaPeriodo(
+    val descripcion: String,
+    val numero: Int,
+    val total: Int,
+    val valor: Long,
+    val montoCompra: Long
+) {
+    val quedan: Int get() = total - numero
+}
+
+fun Movimiento.esCompraEnCuotas(): Boolean =
+    tipo == TipoMovimiento.GASTO && origen == OrigenPago.CREDITO && cuotas > 1
+
+// Sin interés: el total dividido en partes iguales, redondeado al peso.
+fun valorCuota(monto: Long, cuotas: Int): Long = (monto + cuotas / 2) / cuotas
+
+private fun EstadoCuenta.desdeProximo(): LocalDate = proximoDesde ?: fechaEstado.plusDays(1)
+
+private fun enPeriodo(fecha: LocalDate, desde: LocalDate, hasta: LocalDate?): Boolean =
+    !fecha.isBefore(desde) && (hasta == null || !fecha.isAfter(hasta))
+
+// Cuotas de la próxima factura. Con factura importada: las que siguen de la factura (con el monto exacto
+// que informa el banco) más la cuota 1 de las compras en cuotas anotadas en el período actual.
+// Sin factura: se cuenta por meses desde la compra (la cuota 1 es la del mes de la compra).
+fun cuotasDelPeriodo(
+    ultimo: EstadoCuenta?,
+    opsUltimo: List<OperacionTarjeta>,
+    movimientos: List<Movimiento>,
+    hoy: LocalDate
+): List<CuotaPeriodo> {
+    val compras = movimientos.filter { it.esCompraEnCuotas() }
+    if (ultimo == null) {
+        return compras.mapNotNull { m ->
+            val numero = ChronoUnit.MONTHS.between(YearMonth.from(m.fecha), YearMonth.from(hoy)).toInt() + 1
+            if (numero in 1..m.cuotas) CuotaPeriodo(nombreCompra(m), numero, m.cuotas, valorCuota(m.monto, m.cuotas), m.monto) else null
+        }
+    }
+    val deFactura = opsUltimo
+        .filter { it.tipo == TipoOperacionTarjeta.CUOTA && it.cuotaActual < it.cuotasTotal }
+        .map { CuotaPeriodo(nombreCargo(it.descripcion), it.cuotaActual + 1, it.cuotasTotal, it.valorCuota, it.montoOperacion) }
+        .toMutableList()
+    // El banco ajusta el redondeo en alguna cuota: se cuadra con lo que dice que vence el mes siguiente.
+    val vence = vencimientos(ultimo).firstOrNull() ?: 0
+    if (vence > 0) {
+        val diferencia = vence - deFactura.sumOf { it.valor }
+        if (deFactura.isEmpty()) {
+            deFactura += CuotaPeriodo("Cuotas de la factura", 0, 0, vence, vence)
+        } else if (diferencia != 0L) {
+            val ultima = deFactura.last()
+            deFactura[deFactura.lastIndex] = ultima.copy(valor = ultima.valor + diferencia)
+        }
+    }
+    val desde = ultimo.desdeProximo()
+    val anotadas = compras
+        .filter { enPeriodo(it.fecha, desde, ultimo.proximoHasta) }
+        .map { CuotaPeriodo(nombreCompra(it), 1, it.cuotas, valorCuota(it.monto, it.cuotas), it.monto) }
+    return deFactura + anotadas
+}
+
+private fun nombreCompra(m: Movimiento): String = m.descripcion.trim().ifBlank { "Compra en cuotas" }
+
 // El período que se está gastando ahora: desde el día siguiente a la última facturación hasta la próxima.
-fun periodoActual(ultimo: EstadoCuenta, opsUltimo: List<OperacionTarjeta>, movimientos: List<Movimiento>): PeriodoActual {
-    val desde = ultimo.proximoDesde ?: ultimo.fechaEstado.plusDays(1)
+// Las compras en cuotas no entran completas: solo su cuota, dentro de `cuotas`.
+fun periodoActual(
+    ultimo: EstadoCuenta,
+    opsUltimo: List<OperacionTarjeta>,
+    movimientos: List<Movimiento>,
+    hoy: LocalDate = LocalDate.now()
+): PeriodoActual {
+    val desde = ultimo.desdeProximo()
     val hasta = ultimo.proximoHasta
     val gastos = movimientos
-        .filter { it.tipo == TipoMovimiento.GASTO && it.origen == OrigenPago.CREDITO }
-        .filter { !it.fecha.isBefore(desde) && (hasta == null || !it.fecha.isAfter(hasta)) }
+        .filter { it.tipo == TipoMovimiento.GASTO && it.origen == OrigenPago.CREDITO && !it.esCompraEnCuotas() }
+        .filter { enPeriodo(it.fecha, desde, hasta) }
         .sumOf { it.monto }
     return PeriodoActual(
         desde = desde,
         hasta = hasta,
         gastosCredito = gastos,
-        cuotas = vencimientos(ultimo).firstOrNull() ?: 0,
+        cuotas = cuotasDelPeriodo(ultimo, opsUltimo, movimientos, hoy).sumOf { it.valor },
         comision = opsUltimo.filter { it.tipo == TipoOperacionTarjeta.CARGO && it.descripcion.contains("COMISION") }
             .sumOf { it.valorCuota }
     )
@@ -98,11 +167,17 @@ fun vencimientos(estado: EstadoCuenta): List<Long> =
     estado.vencimientos.split(",").mapNotNull { it.trim().toLongOrNull() }
 
 // "oct $23.334" para los 4 meses siguientes a la facturación (los que tengan monto).
-fun mesesVencimientos(estado: EstadoCuenta): List<Pair<String, Long>> =
-    vencimientos(estado).mapIndexed { i, monto ->
+// Suma también las cuotas de las compras anotadas en el período actual (la 1 entra el primer mes).
+fun mesesVencimientos(estado: EstadoCuenta, anotadas: List<Movimiento> = emptyList()): List<Pair<String, Long>> {
+    val desde = estado.desdeProximo()
+    val compras = anotadas.filter { it.esCompraEnCuotas() && enPeriodo(it.fecha, desde, estado.proximoHasta) }
+    val factura = vencimientos(estado)
+    return (0 until maxOf(factura.size, 4)).map { i ->
+        val monto = factura.getOrElse(i) { 0 } + compras.filter { i < it.cuotas }.sumOf { valorCuota(it.monto, it.cuotas) }
         estado.fechaEstado.plusMonths(i + 1L).month.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag("es-CL"))
             .trimEnd('.') to monto
     }
+}
 
 // Nombres más claros para los cargos del banco.
 fun nombreCargo(descripcion: String): String = when {

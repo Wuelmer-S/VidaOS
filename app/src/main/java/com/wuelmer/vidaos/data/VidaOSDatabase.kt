@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
         EstadoCuenta::class,
         OperacionTarjeta::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -53,7 +53,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
                     VidaOSDatabase::class.java,
                     NOMBRE_ARCHIVO
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .addCallback(SeedCategoriasCallback(scope))
                     .build()
                 INSTANCE = instance

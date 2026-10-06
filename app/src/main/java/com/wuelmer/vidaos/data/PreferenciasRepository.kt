@@ -34,7 +34,9 @@ data class Preferencias(
     val avisosMoto: Boolean = true,
     val horaAvisosMoto: Int = HORA_AVISOS_MOTO_DEFECTO,
     val recordatorioGastos: Boolean = true,
-    val horaRecordatorioGastos: Int = HORA_RECORDATORIO_GASTOS_DEFECTO
+    val horaRecordatorioGastos: Int = HORA_RECORDATORIO_GASTOS_DEFECTO,
+    val avisoPagoTarjeta: Boolean = true,
+    val horaAvisoPagoTarjeta: Int = HORA_AVISO_PAGO_TARJETA_DEFECTO
 )
 
 const val META_SEMANAL_DEFECTO = 3
@@ -43,6 +45,8 @@ val RANGO_META_SEMANAL = 1..7
 // Horas en minutos desde medianoche: 07:30 antes de salir en la moto, 20:00 para anotar los gastos del día.
 const val HORA_AVISOS_MOTO_DEFECTO = 7 * 60 + 30
 const val HORA_RECORDATORIO_GASTOS_DEFECTO = 20 * 60
+// 09:00: con tiempo para pagar la tarjeta durante el día.
+const val HORA_AVISO_PAGO_TARJETA_DEFECTO = 9 * 60
 private val RANGO_MINUTOS_DIA = 0 until 24 * 60
 
 private val Context.dataStore by preferencesDataStore(name = "preferencias")
@@ -59,6 +63,8 @@ class PreferenciasRepository(context: Context) {
     private val claveHoraAvisosMoto = intPreferencesKey("hora_avisos_moto")
     private val claveRecordatorioGastos = booleanPreferencesKey("recordatorio_gastos")
     private val claveHoraRecordatorioGastos = intPreferencesKey("hora_recordatorio_gastos")
+    private val claveAvisoPagoTarjeta = booleanPreferencesKey("aviso_pago_tarjeta")
+    private val claveHoraAvisoPagoTarjeta = intPreferencesKey("hora_aviso_pago_tarjeta")
     private val claveAvisosMotoEnviados = stringSetPreferencesKey("avisos_moto_enviados")
     private val claveClavePdfTarjeta = stringPreferencesKey("clave_pdf_tarjeta")
 
@@ -75,6 +81,9 @@ class PreferenciasRepository(context: Context) {
                 horaAvisosMoto = (prefs[claveHoraAvisosMoto] ?: HORA_AVISOS_MOTO_DEFECTO).coerceIn(RANGO_MINUTOS_DIA),
                 recordatorioGastos = prefs[claveRecordatorioGastos] ?: true,
                 horaRecordatorioGastos = (prefs[claveHoraRecordatorioGastos] ?: HORA_RECORDATORIO_GASTOS_DEFECTO)
+                    .coerceIn(RANGO_MINUTOS_DIA),
+                avisoPagoTarjeta = prefs[claveAvisoPagoTarjeta] ?: true,
+                horaAvisoPagoTarjeta = (prefs[claveHoraAvisoPagoTarjeta] ?: HORA_AVISO_PAGO_TARJETA_DEFECTO)
                     .coerceIn(RANGO_MINUTOS_DIA)
             )
         }
@@ -112,6 +121,14 @@ class PreferenciasRepository(context: Context) {
 
     suspend fun setHoraRecordatorioGastos(minutos: Int) {
         dataStore.edit { it[claveHoraRecordatorioGastos] = minutos.coerceIn(RANGO_MINUTOS_DIA) }
+    }
+
+    suspend fun setAvisoPagoTarjeta(activo: Boolean) {
+        dataStore.edit { it[claveAvisoPagoTarjeta] = activo }
+    }
+
+    suspend fun setHoraAvisoPagoTarjeta(minutos: Int) {
+        dataStore.edit { it[claveHoraAvisoPagoTarjeta] = minutos.coerceIn(RANGO_MINUTOS_DIA) }
     }
 
     // Avisos de mantención ya enviados ("tipoId:registroId:NIVEL"). No va en Preferencias: no lo muestra ninguna pantalla.
