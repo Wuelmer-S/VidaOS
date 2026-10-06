@@ -77,6 +77,8 @@ fun ConfiguracionRoute(
         onHoraAvisosMotoChange = viewModel::onHoraAvisosMotoChange,
         onRecordatorioGastosChange = viewModel::onRecordatorioGastosChange,
         onHoraRecordatorioGastosChange = viewModel::onHoraRecordatorioGastosChange,
+        onAvisoPagoTarjetaChange = viewModel::onAvisoPagoTarjetaChange,
+        onHoraAvisoPagoTarjetaChange = viewModel::onHoraAvisoPagoTarjetaChange,
         onRevisarAvisos = viewModel::revisarAvisosAhora,
         modifier = modifier
     )
@@ -100,6 +102,8 @@ fun ConfiguracionScreen(
     onHoraAvisosMotoChange: (Int) -> Unit,
     onRecordatorioGastosChange: (Boolean) -> Unit,
     onHoraRecordatorioGastosChange: (Int) -> Unit,
+    onAvisoPagoTarjetaChange: (Boolean) -> Unit,
+    onHoraAvisoPagoTarjetaChange: (Int) -> Unit,
     onRevisarAvisos: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -252,6 +256,8 @@ fun ConfiguracionScreen(
                 onHoraAvisosMotoChange = onHoraAvisosMotoChange,
                 onRecordatorioGastosChange = onRecordatorioGastosChange,
                 onHoraRecordatorioGastosChange = onHoraRecordatorioGastosChange,
+                onAvisoPagoTarjetaChange = onAvisoPagoTarjetaChange,
+                onHoraAvisoPagoTarjetaChange = onHoraAvisoPagoTarjetaChange,
                 onRevisarAhora = onRevisarAvisos
             )
 

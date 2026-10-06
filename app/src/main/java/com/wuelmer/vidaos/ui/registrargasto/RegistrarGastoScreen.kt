@@ -26,6 +26,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -46,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +60,8 @@ import com.wuelmer.vidaos.data.OrigenPago
 import com.wuelmer.vidaos.data.TipoCategoria
 import com.wuelmer.vidaos.data.TipoMovimiento
 import com.wuelmer.vidaos.ui.categorias.AgregarCategoriaDialog
+import com.wuelmer.vidaos.ui.movimientos.formatearMonto
+import com.wuelmer.vidaos.ui.tarjeta.valorCuota
 import com.wuelmer.vidaos.ui.theme.ColorGasto
 import com.wuelmer.vidaos.ui.theme.ColorIngreso
 import com.wuelmer.vidaos.ui.theme.TextoSuave
@@ -93,6 +97,7 @@ fun RegistrarGastoRoute(
             onOrigenChange = viewModel::onOrigenChange,
             onTipoChange = viewModel::onTipoChange,
             onCategoriaChange = viewModel::onCategoriaChange,
+            onCuotasChange = viewModel::onCuotasChange,
             onAgregarCategoria = viewModel::agregarCategoria,
             onGuardarClick = viewModel::guardar
         )
@@ -140,6 +145,7 @@ fun EditarMovimientoRoute(
             onOrigenChange = viewModel::onOrigenChange,
             onTipoChange = viewModel::onTipoChange,
             onCategoriaChange = viewModel::onCategoriaChange,
+            onCuotasChange = viewModel::onCuotasChange,
             onAgregarCategoria = viewModel::agregarCategoria,
             onGuardarClick = viewModel::guardar,
             modifier = Modifier.padding(innerPadding)
@@ -156,6 +162,7 @@ fun RegistrarGastoScreen(
     onOrigenChange: (OrigenPago) -> Unit,
     onTipoChange: (TipoMovimiento) -> Unit,
     onCategoriaChange: (Long) -> Unit,
+    onCuotasChange: (Int) -> Unit = {},
     onAgregarCategoria: (nombre: String, tipo: TipoCategoria) -> Unit = { _, _ -> },
     onGuardarClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -237,6 +244,10 @@ fun RegistrarGastoScreen(
                 FechaSelector(fecha = uiState.fecha, onFechaChange = onFechaChange)
 
                 OrigenSelector(origenSeleccionado = uiState.origen, onOrigenChange = onOrigenChange)
+
+                if (uiState.admiteCuotas) {
+                    CuotasSelector(cuotas = uiState.cuotas, monto = uiState.monto.toLongOrNull(), onCuotasChange = onCuotasChange)
+                }
 
                 Button(
                     onClick = onGuardarClick,
@@ -388,6 +399,38 @@ private fun OrigenPago.etiqueta(): String = when (this) {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+// Compras con crédito: en cuántas cuotas. El monto que se anota es el total de la compra.
+@Composable
+private fun CuotasSelector(cuotas: Int, monto: Long?, onCuotasChange: (Int) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = "Cuotas", style = MaterialTheme.typography.labelMedium, color = TextoSuave)
+            Text(
+                text = when {
+                    cuotas == 1 -> "Sin cuotas"
+                    monto != null && monto > 0 -> "$cuotas cuotas de ${formatearMonto(valorCuota(monto, cuotas))}"
+                    else -> "$cuotas cuotas"
+                },
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+        OutlinedIconButton(onClick = { onCuotasChange(cuotas - 1) }, enabled = cuotas > 1) {
+            Text("−", style = MaterialTheme.typography.titleLarge)
+        }
+        Text(
+            text = cuotas.toString(),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+        OutlinedIconButton(onClick = { onCuotasChange(cuotas + 1) }, enabled = cuotas < MAX_CUOTAS) {
+            Icon(Icons.Filled.Add, contentDescription = "Más cuotas")
+        }
+    }
+}
+
 @Composable
 private fun FechaSelector(
     fecha: LocalDate,

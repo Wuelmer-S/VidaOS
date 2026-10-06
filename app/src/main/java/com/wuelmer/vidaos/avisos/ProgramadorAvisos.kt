@@ -12,14 +12,15 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 
 // Lo que define cuándo suenan los avisos. Se reprograma solo si esto cambia (no por el tema, etc.).
-data class HorarioAvisos(val moto: Int?, val gastos: Int?)
+data class HorarioAvisos(val moto: Int?, val gastos: Int?, val tarjeta: Int? = null)
 
 // null = ese aviso está apagado o su módulo está oculto.
 fun horarioAvisos(prefs: Preferencias): HorarioAvisos {
     val visibles = modulosVisibles(prefs.modulosOcultos)
     return HorarioAvisos(
         moto = prefs.horaAvisosMoto.takeIf { prefs.avisosMoto && Modulo.MOTO in visibles },
-        gastos = prefs.horaRecordatorioGastos.takeIf { prefs.recordatorioGastos && Modulo.FINANZAS in visibles }
+        gastos = prefs.horaRecordatorioGastos.takeIf { prefs.recordatorioGastos && Modulo.FINANZAS in visibles },
+        tarjeta = prefs.horaAvisoPagoTarjeta.takeIf { prefs.avisoPagoTarjeta && Modulo.FINANZAS in visibles }
     )
 }
 
@@ -27,6 +28,7 @@ fun horarioAvisos(prefs: Preferencias): HorarioAvisos {
 object ProgramadorAvisos {
     const val ACCION_MOTO = "com.wuelmer.vidaos.AVISOS_MOTO"
     const val ACCION_GASTOS = "com.wuelmer.vidaos.RECORDATORIO_GASTOS"
+    const val ACCION_TARJETA = "com.wuelmer.vidaos.AVISO_PAGO_TARJETA"
 
     // Si el sistema no deja usar alarmas exactas: llega a más tardar 15 min después de la hora.
     private const val VENTANA_MS = 15 * 60 * 1000L
@@ -34,6 +36,7 @@ object ProgramadorAvisos {
     fun programar(context: Context, horario: HorarioAvisos) {
         programarUno(context, ACCION_MOTO, horario.moto)
         programarUno(context, ACCION_GASTOS, horario.gastos)
+        programarUno(context, ACCION_TARJETA, horario.tarjeta)
     }
 
     private fun programarUno(context: Context, accion: String, minutosDelDia: Int?) {

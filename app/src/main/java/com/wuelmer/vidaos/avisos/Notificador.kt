@@ -18,8 +18,10 @@ object Notificador {
 
     private const val CANAL_MOTO = "mantenciones_moto"
     private const val CANAL_GASTOS = "recordatorio_gastos"
+    private const val CANAL_TARJETA = "pago_tarjeta"
     private const val ID_KM = 1
     private const val ID_GASTOS = 2
+    private const val ID_TARJETA = 3
     // Una notificación por mantención: id = base + tipoId, así la de mañana reemplaza a la de hoy.
     private const val ID_BASE_MANTENCION = 1000
 
@@ -33,6 +35,11 @@ object Notificador {
         manager.createNotificationChannel(
             NotificationChannel(CANAL_GASTOS, "Recordatorio de gastos", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "Aviso en la noche si no anotaste gastos ese día"
+            }
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(CANAL_TARJETA, "Pago de la tarjeta", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Aviso los 3 días antes de la fecha de pago si la factura no está pagada"
             }
         )
     }
@@ -68,6 +75,10 @@ object Notificador {
             modulo = Modulo.FINANZAS,
             ruta = null
         )
+    }
+
+    fun tarjeta(context: Context, texto: String) {
+        mostrar(context, ID_TARJETA, CANAL_TARJETA, "💳 Paga la tarjeta", texto, Modulo.FINANZAS, "tarjeta")
     }
 
     private fun mostrar(

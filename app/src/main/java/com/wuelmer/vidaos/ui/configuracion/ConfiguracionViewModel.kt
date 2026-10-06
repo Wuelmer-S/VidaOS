@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.wuelmer.vidaos.VidaOSApplication
 import com.wuelmer.vidaos.avisos.AvisosReceiver
 import com.wuelmer.vidaos.data.HORA_AVISOS_MOTO_DEFECTO
+import com.wuelmer.vidaos.data.HORA_AVISO_PAGO_TARJETA_DEFECTO
 import com.wuelmer.vidaos.data.HORA_RECORDATORIO_GASTOS_DEFECTO
 import com.wuelmer.vidaos.data.META_SEMANAL_DEFECTO
 import com.wuelmer.vidaos.data.PreferenciasRepository
@@ -35,7 +36,9 @@ data class ConfiguracionUiState(
     val avisosMoto: Boolean = true,
     val horaAvisosMoto: Int = HORA_AVISOS_MOTO_DEFECTO,
     val recordatorioGastos: Boolean = true,
-    val horaRecordatorioGastos: Int = HORA_RECORDATORIO_GASTOS_DEFECTO
+    val horaRecordatorioGastos: Int = HORA_RECORDATORIO_GASTOS_DEFECTO,
+    val avisoPagoTarjeta: Boolean = true,
+    val horaAvisoPagoTarjeta: Int = HORA_AVISO_PAGO_TARJETA_DEFECTO
 )
 
 class ConfiguracionViewModel(
@@ -63,7 +66,9 @@ class ConfiguracionViewModel(
                 avisosMoto = it.avisosMoto,
                 horaAvisosMoto = it.horaAvisosMoto,
                 recordatorioGastos = it.recordatorioGastos,
-                horaRecordatorioGastos = it.horaRecordatorioGastos
+                horaRecordatorioGastos = it.horaRecordatorioGastos,
+                avisoPagoTarjeta = it.avisoPagoTarjeta,
+                horaAvisoPagoTarjeta = it.horaAvisoPagoTarjeta
             )
         }
         .stateIn(
@@ -99,6 +104,14 @@ class ConfiguracionViewModel(
 
     fun onHoraRecordatorioGastosChange(minutos: Int) {
         viewModelScope.launch { preferencias.setHoraRecordatorioGastos(minutos) }
+    }
+
+    fun onAvisoPagoTarjetaChange(activo: Boolean) {
+        viewModelScope.launch { preferencias.setAvisoPagoTarjeta(activo) }
+    }
+
+    fun onHoraAvisoPagoTarjetaChange(minutos: Int) {
+        viewModelScope.launch { preferencias.setHoraAvisoPagoTarjeta(minutos) }
     }
 
     fun revisarAvisosAhora() {
@@ -145,6 +158,7 @@ class ConfiguracionViewModel(
                     revisarAvisos = {
                         AvisosReceiver.revisarMoto(application)
                         AvisosReceiver.revisarGastos(application)
+                        AvisosReceiver.revisarTarjeta(application)
                     }
                 )
             }

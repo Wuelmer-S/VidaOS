@@ -1,5 +1,6 @@
 package com.wuelmer.vidaos.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -45,5 +46,8 @@ data class Movimiento(
     val origen: OrigenPago,
     val tipo: TipoMovimiento,
     val esPrestamo: TipoPrestamo? = null,
-    val observaciones: String? = null
+    val observaciones: String? = null,
+    // Compras con crédito en cuotas: el monto es el total de la compra (1 = sin cuotas).
+    @ColumnInfo(defaultValue = "1")
+    val cuotas: Int = 1
 )

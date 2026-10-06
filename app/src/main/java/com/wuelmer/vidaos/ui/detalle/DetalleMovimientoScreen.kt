@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -49,6 +51,8 @@ import com.wuelmer.vidaos.data.OrigenPago
 import com.wuelmer.vidaos.data.TipoMovimiento
 import com.wuelmer.vidaos.ui.movimientos.formatearMonto
 import com.wuelmer.vidaos.ui.movimientos.parseColorOrDefault
+import com.wuelmer.vidaos.ui.tarjeta.esCompraEnCuotas
+import com.wuelmer.vidaos.ui.tarjeta.valorCuota
 import com.wuelmer.vidaos.ui.theme.ColorGasto
 import com.wuelmer.vidaos.ui.theme.ColorIngreso
 import com.wuelmer.vidaos.ui.theme.TextoSuave
@@ -116,11 +120,12 @@ fun DetalleMovimientoScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (item == null) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
                     Text(
                         text = "Este movimiento ya no existe.",
                         color = TextoSuave,
@@ -209,6 +214,10 @@ private fun DetalleCard(item: MovimientoConCategoria) {
                 valor = item.movimiento.descripcion.ifBlank { "Sin descripción" }
             )
             Etiqueta(titulo = "Origen", valor = item.movimiento.origen.etiqueta())
+            if (item.movimiento.esCompraEnCuotas()) {
+                val m = item.movimiento
+                Etiqueta(titulo = "Cuotas", valor = "${m.cuotas} cuotas de ${formatearMonto(valorCuota(m.monto, m.cuotas))}")
+            }
 
             item.movimiento.observaciones?.takeIf { it.isNotBlank() }?.let { observaciones ->
                 Etiqueta(titulo = "Observaciones", valor = observaciones)

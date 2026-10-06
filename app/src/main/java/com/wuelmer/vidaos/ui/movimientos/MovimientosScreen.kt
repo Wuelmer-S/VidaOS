@@ -1,15 +1,17 @@
 package com.wuelmer.vidaos.ui.movimientos
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -18,8 +20,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +37,9 @@ import com.wuelmer.vidaos.data.OrigenPago
 import com.wuelmer.vidaos.data.TipoCategoria
 import com.wuelmer.vidaos.data.TipoMovimiento
 import com.wuelmer.vidaos.ui.categorias.AgregarCategoriaDialog
+import com.wuelmer.vidaos.ui.tarjeta.CuotaPeriodo
 import com.wuelmer.vidaos.ui.theme.ColorGasto
+import com.wuelmer.vidaos.ui.theme.OrigenCreditoColor
 import com.wuelmer.vidaos.ui.theme.TextoSuave
 import com.wuelmer.vidaos.ui.theme.VidaOSTheme
 import java.time.LocalDate
@@ -81,13 +87,15 @@ fun MovimientosScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         TotalDelMesCard(
             mesFormateado = mesFormateado,
             total = uiState.totalGastadoMes,
-            totalCredito = uiState.gastosPorOrigen.firstOrNull { it.origen == OrigenPago.CREDITO }?.total ?: 0L
+            totalCredito = uiState.gastosPorOrigen.firstOrNull { it.origen == OrigenPago.CREDITO }?.total ?: 0L,
+            cuotas = uiState.cuotasProximaFactura
         )
 
         GraficoGastosPorCategoriaCard(
@@ -101,10 +109,10 @@ fun MovimientosScreen(
         Surface(
             shape = RoundedCornerShape(22.dp),
             color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth()
         ) {
             if (uiState.movimientos.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
                     Text(
                         text = "Aún no hay movimientos registrados.",
                         color = TextoSuave,
@@ -112,17 +120,14 @@ fun MovimientosScreen(
                     )
                 }
             } else {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp)
-                    ) {
-                        items(
-                            uiState.movimientos.take(LIMITE_ULTIMOS_MOVIMIENTOS),
-                            key = { it.movimiento.id }
-                        ) { item ->
-                            MovimientoRow(item, onClick = onMovimientoClick)
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Son pocos (los últimos 5): una columna simple, dentro del scroll de la pantalla.
+                    Column(modifier = Modifier.padding(18.dp, 16.dp)) {
+                        uiState.movimientos.take(LIMITE_ULTIMOS_MOVIMIENTOS).forEach { item ->
+                            key(item.movimiento.id) {
+                                MovimientoRow(item, onClick = onMovimientoClick)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                            }
                         }
                     }
                     TextButton(
@@ -149,8 +154,9 @@ fun MovimientosScreen(
 }
 
 // Bajo el total, en chico, lo gastado con crédito este mes: para ir viendo cuánto se va a tener que pagar.
+// Las compras en cuotas cuentan completas en el total; aparte, una sola línea con las cuotas de la próxima factura.
 @Composable
-private fun TotalDelMesCard(mesFormateado: String, total: Long, totalCredito: Long) {
+private fun TotalDelMesCard(mesFormateado: String, total: Long, totalCredito: Long, cuotas: List<CuotaPeriodo> = emptyList()) {
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -173,6 +179,50 @@ private fun TotalDelMesCard(mesFormateado: String, total: Long, totalCredito: Lo
                 style = MaterialTheme.typography.bodySmall,
                 color = TextoSuave
             )
+            if (cuotas.isNotEmpty()) LineaCuotas(cuotas)
+        }
+    }
+}
+
+@Composable
+private fun LineaCuotas(cuotas: List<CuotaPeriodo>) {
+    var abierta by rememberSaveable { mutableStateOf(false) }
+    // La fila genérica de la factura (sin detalle) no es una compra.
+    val compras = cuotas.count { it.total > 0 }.coerceAtLeast(1)
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = OrigenCreditoColor.copy(alpha = 0.16f),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .clickable { abierta = !abierta }
+                .padding(horizontal = 10.dp, vertical = 7.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "🧾 Cuotas en tu próxima factura: ${formatearMonto(cuotas.sumOf { it.valor })} · " +
+                        if (compras == 1) "1 compra" else "$compras compras",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(if (abierta) "▴" else "▾", style = MaterialTheme.typography.bodySmall)
+            }
+            if (abierta) {
+                cuotas.forEach { c ->
+                    Row(modifier = Modifier.padding(top = 4.dp)) {
+                        Text(
+                            text = if (c.total > 0) "${c.descripcion} ${c.numero}/${c.total}" else c.descripcion,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextoSuave,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(formatearMonto(c.valor), style = MaterialTheme.typography.bodySmall, color = TextoSuave)
+                    }
+                }
+            }
         }
     }
 }

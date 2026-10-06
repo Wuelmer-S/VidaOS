@@ -3,6 +3,7 @@ package com.wuelmer.vidaos.avisos
 import com.wuelmer.vidaos.data.RegistroMantencion
 import com.wuelmer.vidaos.data.TipoMantencion
 import com.wuelmer.vidaos.ui.moto.calcularEstado
+import com.wuelmer.vidaos.ui.tarjeta.EstadoPago
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -114,5 +115,44 @@ class ReglasAvisosTest {
     fun formatoHora() {
         assertEquals("07:30", formatearHora(450))
         assertEquals("20:00", formatearHora(1200))
+    }
+
+    private val factura = com.wuelmer.vidaos.data.EstadoCuenta(
+        id = 1,
+        fechaEstado = LocalDate.of(2026, 3, 20),
+        periodoDesde = LocalDate.of(2026, 2, 21),
+        periodoHasta = LocalDate.of(2026, 3, 20),
+        pagarHasta = LocalDate.of(2026, 4, 5),
+        totalFacturado = 100_000,
+        montoMinimo = 9_000,
+        cupoTotal = 800_000,
+        cupoUtilizado = 130_000,
+        cupoDisponible = 670_000,
+        facturadoAnterior = 0,
+        proximoDesde = null,
+        proximoHasta = null,
+        vencimientos = "",
+        importadoEl = LocalDate.of(2026, 3, 22)
+    )
+
+    @Test
+    fun pagoTarjeta_avisaLosTresDiasAntes() {
+        assertEquals(3L, diasAvisoPagoTarjeta(EstadoPago.Pendiente(3)))
+        assertEquals(0L, diasAvisoPagoTarjeta(EstadoPago.Parcial(50_000, 50_000, true, 0)))
+        assertNull(diasAvisoPagoTarjeta(EstadoPago.Pendiente(4)))
+        assertNull(diasAvisoPagoTarjeta(EstadoPago.Pagada(100_000, manual = false)))
+        assertNull(diasAvisoPagoTarjeta(EstadoPago.Vencida(0, 100_000)))
+    }
+
+    @Test
+    fun pagoTarjeta_texto() {
+        assertEquals(
+            "Vence mañana (05/04). Te falta pagar $100.000 (mínimo $9.000).",
+            textoAvisoPagoTarjeta(factura, EstadoPago.Pendiente(1), 1)
+        )
+        assertEquals(
+            "Vence en 3 días (05/04). Te falta pagar $40.000 (mínimo $9.000).",
+            textoAvisoPagoTarjeta(factura, EstadoPago.Parcial(60_000, 40_000, true, 3), 3)
+        )
     }
 }
