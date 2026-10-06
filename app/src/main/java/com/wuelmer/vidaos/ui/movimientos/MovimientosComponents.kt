@@ -85,9 +85,10 @@ internal fun MovimientoRow(item: MovimientoConCategoria, onClick: (Long) -> Unit
     }
 }
 
+// 1234 → "$1.234"; -1234 → "−$1.234" (el signo va antes del $).
 internal fun formatearMonto(monto: Long): String {
     val formatter = NumberFormat.getIntegerInstance(Locale.forLanguageTag("es-CL"))
-    return "$${formatter.format(monto)}"
+    return if (monto < 0) "−$${formatter.format(-monto)}" else "$${formatter.format(monto)}"
 }
 
 internal fun parseColorOrDefault(hex: String?, default: Color): Color {

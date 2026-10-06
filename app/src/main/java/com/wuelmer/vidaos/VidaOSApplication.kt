@@ -6,6 +6,7 @@ import com.wuelmer.vidaos.avisos.ProgramadorAvisos
 import com.wuelmer.vidaos.avisos.horarioAvisos
 import com.wuelmer.vidaos.data.PreferenciasRepository
 import com.wuelmer.vidaos.data.RespaldoRepository
+import com.wuelmer.vidaos.data.TarjetaRepository
 import com.wuelmer.vidaos.data.VidaOSDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -19,6 +20,7 @@ class VidaOSApplication : Application() {
     val database: VidaOSDatabase by lazy { VidaOSDatabase.getInstance(this, applicationScope) }
     val preferencias: PreferenciasRepository by lazy { PreferenciasRepository(this) }
     val respaldo: RespaldoRepository by lazy { RespaldoRepository(this, database) }
+    val tarjeta: TarjetaRepository by lazy { TarjetaRepository(this, preferencias) }
 
     override fun onCreate() {
         super.onCreate()
