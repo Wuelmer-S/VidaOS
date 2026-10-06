@@ -60,6 +60,7 @@ class PreferenciasRepository(context: Context) {
     private val claveRecordatorioGastos = booleanPreferencesKey("recordatorio_gastos")
     private val claveHoraRecordatorioGastos = intPreferencesKey("hora_recordatorio_gastos")
     private val claveAvisosMotoEnviados = stringSetPreferencesKey("avisos_moto_enviados")
+    private val claveClavePdfTarjeta = stringPreferencesKey("clave_pdf_tarjeta")
 
     val preferencias: Flow<Preferencias> = dataStore.data
         .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
@@ -119,5 +120,13 @@ class PreferenciasRepository(context: Context) {
 
     suspend fun setAvisosMotoEnviados(enviados: Set<String>) {
         dataStore.edit { it[claveAvisosMotoEnviados] = enviados }
+    }
+
+    // Clave del PDF del estado de cuenta (la pide el banco). Queda solo en el teléfono, en los datos privados de la app.
+    suspend fun getClavePdfTarjeta(): String? =
+        dataStore.data.catch { emit(emptyPreferences()) }.first()[claveClavePdfTarjeta]
+
+    suspend fun setClavePdfTarjeta(clave: String) {
+        dataStore.edit { it[claveClavePdfTarjeta] = clave }
     }
 }

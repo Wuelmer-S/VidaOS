@@ -24,9 +24,11 @@ import kotlinx.coroutines.launch
         TipoMantencion::class,
         RegistroMantencion::class,
         Trabajo::class,
-        AjusteTrabajo::class
+        AjusteTrabajo::class,
+        EstadoCuenta::class,
+        OperacionTarjeta::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -36,6 +38,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
     abstract fun categoriaDao(): CategoriaDao
     abstract fun gymDao(): GymDao
     abstract fun motoDao(): MotoDao
+    abstract fun tarjetaDao(): TarjetaDao
 
     companion object {
         const val NOMBRE_ARCHIVO = "vidaos.db"
@@ -50,7 +53,7 @@ abstract class VidaOSDatabase : RoomDatabase() {
                     VidaOSDatabase::class.java,
                     NOMBRE_ARCHIVO
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .addCallback(SeedCategoriasCallback(scope))
                     .build()
                 INSTANCE = instance

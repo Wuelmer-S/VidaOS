@@ -52,4 +52,10 @@ class Converters {
 
     @TypeConverter
     fun toHechoPor(value: String?): HechoPor? = value?.let(HechoPor::valueOf)
+
+    @TypeConverter
+    fun fromTipoOperacionTarjeta(value: TipoOperacionTarjeta?): String? = value?.name
+
+    @TypeConverter
+    fun toTipoOperacionTarjeta(value: String?): TipoOperacionTarjeta? = value?.let(TipoOperacionTarjeta::valueOf)
 }

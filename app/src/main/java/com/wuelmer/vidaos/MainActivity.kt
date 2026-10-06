@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.IntentCompat
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -71,12 +73,16 @@ import com.wuelmer.vidaos.ui.navegacion.Modulo
 import com.wuelmer.vidaos.ui.navegacion.SelectorModulos
 import com.wuelmer.vidaos.ui.navegacion.modulosVisibles
 import com.wuelmer.vidaos.ui.registrargasto.RegistrarGastoRoute
+import com.wuelmer.vidaos.ui.tarjeta.FacturaRoute
+import com.wuelmer.vidaos.ui.tarjeta.ImportarTarjetaRoute
+import com.wuelmer.vidaos.ui.tarjeta.TarjetaRoute
 import com.wuelmer.vidaos.ui.theme.VidaOSTheme
 
 // Pestañas superiores de cada módulo; la primera de cada uno es su pantalla de inicio.
 private enum class Pestana(val modulo: Modulo, val ruta: String, val etiqueta: String) {
     REGISTRAR(Modulo.FINANZAS, "registrar", "Registrar"),
     MOVIMIENTOS(Modulo.FINANZAS, "movimientos", "Movimientos"),
+    TARJETA(Modulo.FINANZAS, "tarjeta", "Tarjeta"),
     GYM_PROGRESO(Modulo.GYM, "gym_progreso", "Progreso"),
     GYM_SESIONES(Modulo.GYM, "gym_inicio", "Sesiones"),
     MOTO_PLAN(Modulo.MOTO, "moto_inicio", "Plan"),
@@ -105,11 +111,22 @@ private const val RUTA_MOTO_MANTENCION = "moto_mantencion/{$ARG_TIPO_ID}"
 private const val RUTA_MOTO_KM = "moto_km"
 private const val ARG_TRABAJO_ID = "trabajoId"
 private const val RUTA_MOTO_FICHA = "moto_ficha/{$ARG_TRABAJO_ID}"
+private const val ARG_URI = "uri"
+private const val RUTA_TARJETA_IMPORTAR = "tarjeta_importar?$ARG_URI={$ARG_URI}"
+private const val ARG_ESTADO_ID = "estadoId"
+private const val RUTA_TARJETA_FACTURA = "tarjeta_factura/{$ARG_ESTADO_ID}"
 
-// Pantalla que pidió abrir una notificación (p. ej. el detalle de una mantención).
+private fun rutaImportar(uri: Uri): String = "tarjeta_importar?$ARG_URI=${Uri.encode(uri.toString())}"
+
+// Pantalla que pidió abrir una notificación (p. ej. el detalle de una mantención) o un PDF compartido desde otra app.
 private data class DestinoNotificacion(val modulo: Modulo, val ruta: String?)
 
 private fun destinoDe(intent: Intent?): DestinoNotificacion? {
+    // "Compartir → vidaOS" con el PDF del estado de cuenta.
+    if (intent?.action == Intent.ACTION_SEND && intent.type == "application/pdf") {
+        val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: return null
+        return DestinoNotificacion(Modulo.FINANZAS, rutaImportar(uri))
+    }
     val modulo = intent?.getStringExtra(Notificador.EXTRA_MODULO)
         ?.let { nombre -> Modulo.entries.firstOrNull { it.name == nombre } } ?: return null
     return DestinoNotificacion(modulo, intent.getStringExtra(Notificador.EXTRA_RUTA))
@@ -234,6 +251,32 @@ private fun VidaOSApp(
                             onVerHistorialClick = { navController.navigate(RUTA_HISTORIAL) },
                             onMovimientoClick = { id -> navController.navigate("detalle/$id") },
                             onGestionarCategoriasClick = { navController.navigate(RUTA_CATEGORIAS) }
+                        )
+                    }
+                    composable(Pestana.TARJETA.ruta) {
+                        TarjetaRoute(
+                            onImportar = { uri -> navController.navigate(rutaImportar(uri)) },
+                            onFacturaClick = { id -> navController.navigate("tarjeta_factura/$id") }
+                        )
+                    }
+                    composable(
+                        route = RUTA_TARJETA_IMPORTAR,
+                        arguments = listOf(navArgument(ARG_URI) { type = NavType.StringType })
+                    ) { entry ->
+                        val uri = Uri.parse(entry.arguments?.getString(ARG_URI).orEmpty())
+                        ImportarTarjetaRoute(
+                            uri = uri,
+                            onBackClick = { navController.popBackStack() },
+                            onGuardada = { navController.irAPestana(Pestana.TARJETA) }
+                        )
+                    }
+                    composable(
+                        route = RUTA_TARJETA_FACTURA,
+                        arguments = listOf(navArgument(ARG_ESTADO_ID) { type = NavType.LongType })
+                    ) { entry ->
+                        FacturaRoute(
+                            estadoId = entry.arguments?.getLong(ARG_ESTADO_ID) ?: 0L,
+                            onBackClick = { navController.popBackStack() }
                         )
                     }
                     composable(RUTA_HISTORIAL) {
@@ -388,7 +431,7 @@ private fun EncabezadoModulo(
                             Tab(
                                 selected = pestana == pestanaActual,
                                 onClick = { onPestanaClick(pestana) },
-                                text = { Text(pestana.etiqueta) }
+                                text = { Text(pestana.etiqueta, maxLines = 1, softWrap = false) }
                             )
                         }
                     }
