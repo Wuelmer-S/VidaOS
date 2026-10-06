@@ -19,15 +19,27 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+// Con movimientoId el formulario edita ese movimiento en vez de crear uno nuevo.
 class RegistrarGastoViewModel(
     private val movimientoDao: MovimientoDao,
-    private val categoriaDao: CategoriaDao
+    private val categoriaDao: CategoriaDao,
+    movimientoId: Long? = null
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(RegistrarGastoUiState())
+    private val _uiState = MutableStateFlow(RegistrarGastoUiState(editando = movimientoId != null))
     val uiState: StateFlow<RegistrarGastoUiState> = _uiState.asStateFlow()
 
+    private var original: Movimiento? = null
+
     init {
+        if (movimientoId != null) {
+            viewModelScope.launch {
+                movimientoDao.getPorId(movimientoId)?.let { movimiento ->
+                    original = movimiento
+                    _uiState.update { it.conMovimiento(movimiento) }
+                }
+            }
+        }
         viewModelScope.launch {
             categoriaDao.getAll().collect { categorias ->
                 _uiState.update { estado ->
@@ -101,6 +113,16 @@ class RegistrarGastoViewModel(
             return
         }
 
+        val editado = original
+        if (estado.editando) {
+            if (editado == null) return
+            viewModelScope.launch {
+                movimientoDao.update(editado.editadoCon(estado, monto, categoriaId))
+                _uiState.update { it.copy(guardadoExitoso = true) }
+            }
+            return
+        }
+
         viewModelScope.launch {
             movimientoDao.insert(
                 Movimiento(
@@ -123,12 +145,15 @@ class RegistrarGastoViewModel(
     }
 
     companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
+        val Factory: ViewModelProvider.Factory = factory(movimientoId = null)
+
+        fun factory(movimientoId: Long?): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as VidaOSApplication
                 RegistrarGastoViewModel(
                     movimientoDao = application.database.movimientoDao(),
-                    categoriaDao = application.database.categoriaDao()
+                    categoriaDao = application.database.categoriaDao(),
+                    movimientoId = movimientoId
                 )
             }
         }

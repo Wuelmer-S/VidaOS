@@ -72,6 +72,7 @@ import com.wuelmer.vidaos.ui.movimientos.MovimientosRoute
 import com.wuelmer.vidaos.ui.navegacion.Modulo
 import com.wuelmer.vidaos.ui.navegacion.SelectorModulos
 import com.wuelmer.vidaos.ui.navegacion.modulosVisibles
+import com.wuelmer.vidaos.ui.registrargasto.EditarMovimientoRoute
 import com.wuelmer.vidaos.ui.registrargasto.RegistrarGastoRoute
 import com.wuelmer.vidaos.ui.tarjeta.FacturaRoute
 import com.wuelmer.vidaos.ui.tarjeta.ImportarTarjetaRoute
@@ -97,6 +98,7 @@ private const val RUTA_HISTORIAL = "historial"
 private const val RUTA_CATEGORIAS = "categorias"
 private const val ARG_MOVIMIENTO_ID = "movimientoId"
 private const val RUTA_DETALLE = "detalle/{$ARG_MOVIMIENTO_ID}"
+private const val RUTA_EDITAR_MOVIMIENTO = "editar_movimiento/{$ARG_MOVIMIENTO_ID}"
 private const val ARG_DIA_ID = "diaId"
 private const val ARG_SESION_ID = "sesionId"
 // sesionId opcional: sin él se registra una sesión nueva; con él se edita la guardada.
@@ -295,6 +297,16 @@ private fun VidaOSApp(
                         val movimientoId = entry.arguments?.getLong(ARG_MOVIMIENTO_ID) ?: 0L
                         DetalleMovimientoRoute(
                             movimientoId = movimientoId,
+                            onBackClick = { navController.popBackStack() },
+                            onEditarClick = { id -> navController.navigate("editar_movimiento/$id") }
+                        )
+                    }
+                    composable(
+                        route = RUTA_EDITAR_MOVIMIENTO,
+                        arguments = listOf(navArgument(ARG_MOVIMIENTO_ID) { type = NavType.LongType })
+                    ) { entry ->
+                        EditarMovimientoRoute(
+                            movimientoId = entry.arguments?.getLong(ARG_MOVIMIENTO_ID) ?: 0L,
                             onBackClick = { navController.popBackStack() }
                         )
                     }
